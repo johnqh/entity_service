@@ -225,7 +225,7 @@ export class PermissionHelper {
 
     if (!permissions[permission]) {
       throw new Error(
-        errorMessage ?? `User lacks permission: ${permission}`
+        errorMessage ?? `User lacks permission: ${String(permission)}`
       );
     }
   }

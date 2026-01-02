@@ -8,8 +8,12 @@ import { EntityHelper } from '../helpers/EntityHelper';
 import { EntityMemberHelper } from '../helpers/EntityMemberHelper';
 import { InvitationHelper } from '../helpers/InvitationHelper';
 import { PermissionHelper } from '../helpers/PermissionHelper';
-import type { EntityHelperConfig, InvitationHelperConfig } from '../types';
-import { EntityRole, type Entity, type EntityPermissions } from '../types';
+import {
+  EntityRole,
+  type Entity,
+  type EntityPermissions,
+  type InvitationHelperConfig,
+} from '../types';
 
 /**
  * Entity context available in Hono handlers.

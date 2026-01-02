@@ -9,8 +9,6 @@
  * 4. Populates entity_id for existing projects
  */
 
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { sql } from 'drizzle-orm';
 
 export interface MigrationConfig {
   /** postgres-js client instance */
@@ -314,7 +312,7 @@ function generateSlug(source?: string): string {
  * Rollback the entity migration.
  */
 export async function rollbackEntityMigration(config: MigrationConfig): Promise<void> {
-  const { client, schemaName, indexPrefix, migrateProjects = true } = config;
+  const { client, schemaName, migrateProjects = true } = config;
   const prefix = `${schemaName}.`;
 
   console.log(`Rolling back entity migration for schema: ${schemaName}`);

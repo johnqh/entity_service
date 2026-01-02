@@ -8,7 +8,6 @@ import {
   EntityRole,
   EntityType,
   type EntityMember,
-  type EntityMemberUser,
   type EntityHelperConfig,
   type ListMembersOptions,
 } from '../types';
