@@ -158,6 +158,7 @@ export class EntityHelper {
 
   /**
    * Get all entities a user is a member of.
+   * If the user has no entities, a personal entity is automatically created.
    */
   async getUserEntities(userId: string): Promise<EntityWithRole[]> {
     const results = await this.config.db
@@ -171,6 +172,17 @@ export class EntityHelper {
         eq(this.config.membersTable.entity_id, this.config.entitiesTable.id)
       )
       .where(eq(this.config.membersTable.user_id, userId));
+
+    // If user has no entities, create a personal entity for them
+    if (results.length === 0) {
+      const personalEntity = await this.createPersonalEntity(userId);
+      return [
+        {
+          ...personalEntity,
+          userRole: EntityRole.ADMIN,
+        },
+      ];
+    }
 
     return results.map(({ entity, role }) => ({
       ...this.mapRecordToEntity(entity),
