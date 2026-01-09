@@ -2,7 +2,7 @@
  * @fileoverview Tests for Entity Slug Generation Utilities
  */
 
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect } from 'vitest';
 import {
   generateEntitySlug,
   generateInvitationToken,
