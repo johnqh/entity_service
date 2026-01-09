@@ -14,6 +14,7 @@ import {
   varchar,
   text,
   timestamp,
+  boolean,
   uniqueIndex,
   index,
 } from 'drizzle-orm/pg-core';
@@ -24,6 +25,7 @@ import {
 
 /**
  * Create an entities table for a specific PostgreSQL schema.
+ * Note: Ownership is tracked via entity_members table (role = 'owner').
  *
  * @param schema - The Drizzle pgSchema object
  * @param indexPrefix - Prefix for index names to avoid conflicts
@@ -39,16 +41,12 @@ export function createEntitiesTable(schema: any, indexPrefix: string) {
       display_name: varchar('display_name', { length: 255 }).notNull(),
       description: text('description'),
       avatar_url: text('avatar_url'),
-      owner_user_id: uuid('owner_user_id').notNull(),
       created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
       updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
     },
     (table: any) => ({
       slugIdx: uniqueIndex(`${indexPrefix}_entities_slug_idx`).on(
         table.entity_slug
-      ),
-      ownerIdx: index(`${indexPrefix}_entities_owner_idx`).on(
-        table.owner_user_id
       ),
       typeIdx: index(`${indexPrefix}_entities_type_idx`).on(table.entity_type),
     })
@@ -57,6 +55,7 @@ export function createEntitiesTable(schema: any, indexPrefix: string) {
 
 /**
  * Create an entities table for the public schema.
+ * Note: Ownership is tracked via entity_members table (role = 'owner').
  */
 export function createEntitiesTablePublic(indexPrefix: string) {
   return pgTable(
@@ -68,16 +67,12 @@ export function createEntitiesTablePublic(indexPrefix: string) {
       display_name: varchar('display_name', { length: 255 }).notNull(),
       description: text('description'),
       avatar_url: text('avatar_url'),
-      owner_user_id: uuid('owner_user_id').notNull(),
       created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
       updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
     },
     (table) => ({
       slugIdx: uniqueIndex(`${indexPrefix}_entities_slug_idx`).on(
         table.entity_slug
-      ),
-      ownerIdx: index(`${indexPrefix}_entities_owner_idx`).on(
-        table.owner_user_id
       ),
       typeIdx: index(`${indexPrefix}_entities_type_idx`).on(table.entity_type),
     })
@@ -90,6 +85,8 @@ export function createEntitiesTablePublic(indexPrefix: string) {
 
 /**
  * Create an entity_members table for a specific PostgreSQL schema.
+ * This table manages all user-entity relationships including ownership.
+ * Role can be: owner, admin, manager, viewer
  */
 export function createEntityMembersTable(schema: any, indexPrefix: string) {
   return schema.table(
@@ -97,8 +94,9 @@ export function createEntityMembersTable(schema: any, indexPrefix: string) {
     {
       id: uuid('id').primaryKey().defaultRandom(),
       entity_id: uuid('entity_id').notNull(),
-      user_id: uuid('user_id').notNull(),
+      user_id: varchar('user_id', { length: 128 }).notNull(), // firebase_uid
       role: varchar('role', { length: 20 }).notNull(),
+      is_active: boolean('is_active').notNull().default(true),
       joined_at: timestamp('joined_at', { withTimezone: true }).defaultNow(),
       created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
       updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
@@ -111,12 +109,15 @@ export function createEntityMembersTable(schema: any, indexPrefix: string) {
         table.entity_id
       ),
       userIdx: index(`${indexPrefix}_entity_members_user_idx`).on(table.user_id),
+      activeIdx: index(`${indexPrefix}_entity_members_active_idx`).on(table.is_active),
     })
   );
 }
 
 /**
  * Create an entity_members table for the public schema.
+ * This table manages all user-entity relationships including ownership.
+ * Role can be: owner, admin, manager, viewer
  */
 export function createEntityMembersTablePublic(indexPrefix: string) {
   return pgTable(
@@ -124,8 +125,9 @@ export function createEntityMembersTablePublic(indexPrefix: string) {
     {
       id: uuid('id').primaryKey().defaultRandom(),
       entity_id: uuid('entity_id').notNull(),
-      user_id: uuid('user_id').notNull(),
+      user_id: varchar('user_id', { length: 128 }).notNull(), // firebase_uid
       role: varchar('role', { length: 20 }).notNull(),
+      is_active: boolean('is_active').notNull().default(true),
       joined_at: timestamp('joined_at', { withTimezone: true }).defaultNow(),
       created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
       updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
@@ -138,6 +140,7 @@ export function createEntityMembersTablePublic(indexPrefix: string) {
         table.entity_id
       ),
       userIdx: index(`${indexPrefix}_entity_members_user_idx`).on(table.user_id),
+      activeIdx: index(`${indexPrefix}_entity_members_active_idx`).on(table.is_active),
     })
   );
 }
@@ -158,7 +161,7 @@ export function createEntityInvitationsTable(schema: any, indexPrefix: string) {
       email: varchar('email', { length: 255 }).notNull(),
       role: varchar('role', { length: 20 }).notNull(),
       status: varchar('status', { length: 20 }).notNull().default('pending'),
-      invited_by_user_id: uuid('invited_by_user_id').notNull(),
+      invited_by_user_id: varchar('invited_by_user_id', { length: 128 }).notNull(), // firebase_uid
       token: varchar('token', { length: 64 }).notNull().unique(),
       expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
       accepted_at: timestamp('accepted_at', { withTimezone: true }),
@@ -194,7 +197,7 @@ export function createEntityInvitationsTablePublic(indexPrefix: string) {
       email: varchar('email', { length: 255 }).notNull(),
       role: varchar('role', { length: 20 }).notNull(),
       status: varchar('status', { length: 20 }).notNull().default('pending'),
-      invited_by_user_id: uuid('invited_by_user_id').notNull(),
+      invited_by_user_id: varchar('invited_by_user_id', { length: 128 }).notNull(), // firebase_uid
       token: varchar('token', { length: 64 }).notNull().unique(),
       expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
       accepted_at: timestamp('accepted_at', { withTimezone: true }),
@@ -232,13 +235,11 @@ export const entities = pgTable(
     display_name: varchar('display_name', { length: 255 }).notNull(),
     description: text('description'),
     avatar_url: text('avatar_url'),
-    owner_user_id: uuid('owner_user_id').notNull(),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
   (table) => ({
     slugIdx: uniqueIndex('entities_slug_idx').on(table.entity_slug),
-    ownerIdx: index('entities_owner_idx').on(table.owner_user_id),
     typeIdx: index('entities_type_idx').on(table.entity_type),
   })
 );
@@ -249,8 +250,9 @@ export const entityMembers = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     entity_id: uuid('entity_id').notNull(),
-    user_id: uuid('user_id').notNull(),
+    user_id: varchar('user_id', { length: 128 }).notNull(), // firebase_uid
     role: varchar('role', { length: 20 }).notNull(),
+    is_active: boolean('is_active').notNull().default(true),
     joined_at: timestamp('joined_at', { withTimezone: true }).defaultNow(),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
@@ -262,6 +264,7 @@ export const entityMembers = pgTable(
     ),
     entityIdx: index('entity_members_entity_idx').on(table.entity_id),
     userIdx: index('entity_members_user_idx').on(table.user_id),
+    activeIdx: index('entity_members_active_idx').on(table.is_active),
   })
 );
 
@@ -274,7 +277,7 @@ export const entityInvitations = pgTable(
     email: varchar('email', { length: 255 }).notNull(),
     role: varchar('role', { length: 20 }).notNull(),
     status: varchar('status', { length: 20 }).notNull().default('pending'),
-    invited_by_user_id: uuid('invited_by_user_id').notNull(),
+    invited_by_user_id: varchar('invited_by_user_id', { length: 128 }).notNull(), // firebase_uid
     token: varchar('token', { length: 64 }).notNull().unique(),
     expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
     accepted_at: timestamp('accepted_at', { withTimezone: true }),
@@ -311,6 +314,7 @@ export type NewEntityInvitationRecord = typeof entityInvitations.$inferInsert;
 
 /**
  * Initialize all entity tables in the database.
+ * Note: Ownership is tracked via entity_members table (role = 'owner').
  *
  * @param client - postgres-js client instance
  * @param schemaName - PostgreSQL schema name (null for public)
@@ -323,7 +327,7 @@ export async function initEntityTables(
 ): Promise<void> {
   const prefix = schemaName ? `${schemaName}.` : '';
 
-  // Create entities table
+  // Create entities table (ownership tracked via entity_members)
   await client.unsafe(`
     CREATE TABLE IF NOT EXISTS ${prefix}entities (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -332,7 +336,6 @@ export async function initEntityTables(
       display_name VARCHAR(255) NOT NULL,
       description TEXT,
       avatar_url TEXT,
-      owner_user_id UUID NOT NULL,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )
@@ -344,22 +347,18 @@ export async function initEntityTables(
   `);
 
   await client.unsafe(`
-    CREATE INDEX IF NOT EXISTS ${indexPrefix}_entities_owner_idx
-    ON ${prefix}entities (owner_user_id)
-  `);
-
-  await client.unsafe(`
     CREATE INDEX IF NOT EXISTS ${indexPrefix}_entities_type_idx
     ON ${prefix}entities (entity_type)
   `);
 
-  // Create entity_members table
+  // Create entity_members table (tracks all user-entity relationships including ownership)
   await client.unsafe(`
     CREATE TABLE IF NOT EXISTS ${prefix}entity_members (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       entity_id UUID NOT NULL REFERENCES ${prefix}entities(id) ON DELETE CASCADE,
-      user_id UUID NOT NULL,
-      role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'manager', 'viewer')),
+      user_id VARCHAR(128) NOT NULL,
+      role VARCHAR(20) NOT NULL CHECK (role IN ('owner', 'admin', 'member')),
+      is_active BOOLEAN NOT NULL DEFAULT true,
       joined_at TIMESTAMPTZ DEFAULT NOW(),
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -382,15 +381,20 @@ export async function initEntityTables(
     ON ${prefix}entity_members (user_id)
   `);
 
+  await client.unsafe(`
+    CREATE INDEX IF NOT EXISTS ${indexPrefix}_entity_members_active_idx
+    ON ${prefix}entity_members (is_active)
+  `);
+
   // Create entity_invitations table
   await client.unsafe(`
     CREATE TABLE IF NOT EXISTS ${prefix}entity_invitations (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       entity_id UUID NOT NULL REFERENCES ${prefix}entities(id) ON DELETE CASCADE,
       email VARCHAR(255) NOT NULL,
-      role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'manager', 'viewer')),
+      role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'member')),
       status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined', 'expired')),
-      invited_by_user_id UUID NOT NULL,
+      invited_by_user_id VARCHAR(128) NOT NULL,
       token VARCHAR(64) NOT NULL UNIQUE,
       expires_at TIMESTAMPTZ NOT NULL,
       accepted_at TIMESTAMPTZ,

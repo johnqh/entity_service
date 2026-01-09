@@ -20,6 +20,7 @@ export class PermissionHelper {
 
   /**
    * Get a user's role in an entity.
+   * Only returns role for active members.
    */
   async getUserRole(
     entityId: string,
@@ -31,7 +32,8 @@ export class PermissionHelper {
       .where(
         and(
           eq(this.config.membersTable.entity_id, entityId),
-          eq(this.config.membersTable.user_id, userId)
+          eq(this.config.membersTable.user_id, userId),
+          eq(this.config.membersTable.is_active, true)
         )
       )
       .limit(1);
@@ -74,27 +76,20 @@ export class PermissionHelper {
 
   /**
    * Check if user is an admin of an entity.
+   * Owner also has admin privileges.
    */
   async isAdmin(entityId: string, userId: string): Promise<boolean> {
     const role = await this.getUserRole(entityId, userId);
-    return role === EntityRole.ADMIN;
+    return role === EntityRole.ADMIN || role === EntityRole.OWNER;
   }
 
   /**
    * Check if user is the owner of an entity.
+   * Determined by role = 'owner' in entity_members.
    */
   async isOwner(entityId: string, userId: string): Promise<boolean> {
-    const results = await this.config.db
-      .select({ ownerUserId: this.config.entitiesTable.owner_user_id })
-      .from(this.config.entitiesTable)
-      .where(eq(this.config.entitiesTable.id, entityId))
-      .limit(1);
-
-    if (results.length === 0) {
-      return false;
-    }
-
-    return results[0].ownerUserId === userId;
+    const role = await this.getUserRole(entityId, userId);
+    return role === EntityRole.OWNER;
   }
 
   /**
@@ -237,7 +232,7 @@ export class PermissionHelper {
     permission: keyof EntityPermissions
   ): EntityRole | null {
     // Check from lowest to highest privilege
-    const roles = [EntityRole.VIEWER, EntityRole.MANAGER, EntityRole.ADMIN];
+    const roles = [EntityRole.MEMBER, EntityRole.ADMIN, EntityRole.OWNER];
 
     for (const role of roles) {
       if (ROLE_PERMISSIONS[role][permission]) {

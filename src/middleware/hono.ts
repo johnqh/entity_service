@@ -149,20 +149,20 @@ export function createRequirePermissionMiddleware(
  *
  * Usage:
  * ```typescript
- * const requireManager = createRequireRoleMiddleware(EntityRole.MANAGER);
+ * const requireAdmin = createRequireRoleMiddleware(EntityRole.ADMIN);
  *
- * app.post('/api/v1/entities/:entitySlug/projects', requireManager, (c) => {
- *   // Only managers and admins can reach here
+ * app.post('/api/v1/entities/:entitySlug/projects', requireAdmin, (c) => {
+ *   // Only admins and owners can reach here
  * });
  * ```
  */
 export function createRequireRoleMiddleware(
   minimumRole: EntityRole
 ): MiddlewareHandler {
-  const roleHierarchy = {
-    [EntityRole.VIEWER]: 0,
-    [EntityRole.MANAGER]: 1,
-    [EntityRole.ADMIN]: 2,
+  const roleHierarchy: Record<EntityRole, number> = {
+    [EntityRole.MEMBER]: 0,
+    [EntityRole.ADMIN]: 1,
+    [EntityRole.OWNER]: 2,
   };
 
   return async (c, next) => {

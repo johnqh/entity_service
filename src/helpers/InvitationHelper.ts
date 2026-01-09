@@ -31,24 +31,26 @@ export class InvitationHelper {
     invitedByUserId: string,
     request: InviteMemberRequest
   ): Promise<EntityInvitation> {
-    // Check if user is already a member
+    // Check if user is already an active member
+    // Note: We only check active members so previously removed users can be re-invited
     const existingMember = await this.config.db
       .select()
       .from(this.config.membersTable)
       .innerJoin(
         this.config.usersTable,
-        eq(this.config.membersTable.user_id, this.config.usersTable.uuid)
+        eq(this.config.membersTable.user_id, this.config.usersTable.firebase_uid)
       )
       .where(
         and(
           eq(this.config.membersTable.entity_id, entityId),
-          eq(this.config.usersTable.email, request.email)
+          eq(this.config.usersTable.email, request.email),
+          eq(this.config.membersTable.is_active, true)
         )
       )
       .limit(1);
 
     if (existingMember.length > 0) {
-      throw new Error('User is already a member of this entity');
+      throw new Error('User is already an active member of this entity');
     }
 
     // Check for existing pending invitation
@@ -182,7 +184,6 @@ export class InvitationHelper {
         displayName: entity.display_name,
         description: entity.description,
         avatarUrl: entity.avatar_url,
-        ownerUserId: entity.owner_user_id,
         createdAt: entity.created_at?.toISOString() ?? new Date().toISOString(),
         updatedAt: entity.updated_at?.toISOString() ?? new Date().toISOString(),
       },
@@ -191,8 +192,10 @@ export class InvitationHelper {
 
   /**
    * Accept an invitation.
+   * @param token - The invitation token
+   * @param firebaseUid - The Firebase UID of the user accepting
    */
-  async acceptInvitation(token: string, userId: string): Promise<void> {
+  async acceptInvitation(token: string, firebaseUid: string): Promise<void> {
     const invitation = await this.getInvitationByToken(token);
 
     if (!invitation) {
@@ -216,11 +219,12 @@ export class InvitationHelper {
       throw new Error('Invitation has expired');
     }
 
-    // Add user as member
+    // Add user as member with active status
     await this.config.db.insert(this.config.membersTable).values({
       entity_id: invitation.entityId,
-      user_id: userId,
+      user_id: firebaseUid,
       role: invitation.role,
+      is_active: true,
     });
 
     // Mark invitation as accepted
@@ -269,13 +273,18 @@ export class InvitationHelper {
   /**
    * Process pending invitations for a new user.
    * Called when a user signs up to auto-accept any pending invitations.
+   * @param firebaseUid - The Firebase UID of the new user
+   * @param email - The user's email to match invitations
    */
-  async processNewUserInvitations(userId: string, email: string): Promise<void> {
+  async processNewUserInvitations(
+    firebaseUid: string,
+    email: string
+  ): Promise<void> {
     const pendingInvitations = await this.getUserPendingInvitations(email);
 
     for (const invitation of pendingInvitations) {
       try {
-        await this.acceptInvitation(invitation.token, userId);
+        await this.acceptInvitation(invitation.token, firebaseUid);
       } catch (error) {
         // Log but don't fail - user account creation is more important
         console.error(`Failed to auto-accept invitation ${invitation.id}:`, error);

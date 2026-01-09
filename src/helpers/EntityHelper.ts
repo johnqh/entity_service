@@ -24,9 +24,11 @@ export class EntityHelper {
   /**
    * Create a personal entity for a user.
    * Called automatically when a user first logs in.
+   * @param firebaseUid - The Firebase UID (used as user_id)
+   * @param email - Optional email for display name
    */
   async createPersonalEntity(
-    userId: string,
+    firebaseUid: string,
     email?: string
   ): Promise<Entity> {
     const slug = generateEntitySlug();
@@ -38,15 +40,15 @@ export class EntityHelper {
         entity_slug: slug,
         entity_type: EntityType.PERSONAL,
         display_name: displayName,
-        owner_user_id: userId,
       })
       .returning();
 
-    // Add user as admin member
+    // Add user as admin (personal entities use admin role, not owner)
     await this.config.db.insert(this.config.membersTable).values({
       entity_id: entity.id,
-      user_id: userId,
+      user_id: firebaseUid,
       role: EntityRole.ADMIN,
+      is_active: true,
     });
 
     return this.mapRecordToEntity(entity);
@@ -55,35 +57,45 @@ export class EntityHelper {
   /**
    * Get or create a personal entity for a user.
    * Ensures exactly one personal entity exists per user.
+   * @param firebaseUid - The Firebase UID (used as user_id)
+   * @param email - Optional email for display name
    */
   async getOrCreatePersonalEntity(
-    userId: string,
+    firebaseUid: string,
     email?: string
   ): Promise<Entity> {
-    // Check for existing personal entity
+    // Check for existing personal entity where user is admin
     const existing = await this.config.db
-      .select()
-      .from(this.config.entitiesTable)
+      .select({ entity: this.config.entitiesTable })
+      .from(this.config.membersTable)
+      .innerJoin(
+        this.config.entitiesTable,
+        eq(this.config.membersTable.entity_id, this.config.entitiesTable.id)
+      )
       .where(
         and(
-          eq(this.config.entitiesTable.owner_user_id, userId),
+          eq(this.config.membersTable.user_id, firebaseUid),
+          eq(this.config.membersTable.role, EntityRole.ADMIN),
+          eq(this.config.membersTable.is_active, true),
           eq(this.config.entitiesTable.entity_type, EntityType.PERSONAL)
         )
       )
       .limit(1);
 
     if (existing.length > 0) {
-      return this.mapRecordToEntity(existing[0]);
+      return this.mapRecordToEntity(existing[0].entity);
     }
 
-    return this.createPersonalEntity(userId, email);
+    return this.createPersonalEntity(firebaseUid, email);
   }
 
   /**
    * Create an organization entity.
+   * @param firebaseUid - The Firebase UID (used as user_id)
+   * @param request - Entity creation request
    */
   async createOrganizationEntity(
-    userId: string,
+    firebaseUid: string,
     request: CreateEntityRequest
   ): Promise<Entity> {
     // Determine slug
@@ -108,15 +120,15 @@ export class EntityHelper {
         entity_type: EntityType.ORGANIZATION,
         display_name: request.displayName,
         description: request.description ?? null,
-        owner_user_id: userId,
       })
       .returning();
 
-    // Add creator as admin member
+    // Add creator as owner
     await this.config.db.insert(this.config.membersTable).values({
       entity_id: entity.id,
-      user_id: userId,
-      role: EntityRole.ADMIN,
+      user_id: firebaseUid,
+      role: EntityRole.OWNER,
+      is_active: true,
     });
 
     return this.mapRecordToEntity(entity);
@@ -159,8 +171,13 @@ export class EntityHelper {
   /**
    * Get all entities a user is a member of.
    * If the user has no entities, a personal entity is automatically created.
+   * @param firebaseUid - The Firebase UID (used as user_id)
+   * @param email - Optional email for display name if creating personal entity
    */
-  async getUserEntities(userId: string): Promise<EntityWithRole[]> {
+  async getUserEntities(
+    firebaseUid: string,
+    email?: string
+  ): Promise<EntityWithRole[]> {
     const results = await this.config.db
       .select({
         entity: this.config.entitiesTable,
@@ -171,15 +188,20 @@ export class EntityHelper {
         this.config.entitiesTable,
         eq(this.config.membersTable.entity_id, this.config.entitiesTable.id)
       )
-      .where(eq(this.config.membersTable.user_id, userId));
+      .where(
+        and(
+          eq(this.config.membersTable.user_id, firebaseUid),
+          eq(this.config.membersTable.is_active, true)
+        )
+      );
 
     // If user has no entities, create a personal entity for them
     if (results.length === 0) {
-      const personalEntity = await this.createPersonalEntity(userId);
+      const personalEntity = await this.createPersonalEntity(firebaseUid, email);
       return [
         {
           ...personalEntity,
-          userRole: EntityRole.ADMIN,
+          userRole: EntityRole.OWNER,
         },
       ];
     }
@@ -293,7 +315,6 @@ export class EntityHelper {
       displayName: record.display_name,
       description: record.description,
       avatarUrl: record.avatar_url,
-      ownerUserId: record.owner_user_id,
       createdAt: record.created_at?.toISOString() ?? new Date().toISOString(),
       updatedAt: record.updated_at?.toISOString() ?? new Date().toISOString(),
     };

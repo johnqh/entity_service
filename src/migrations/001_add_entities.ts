@@ -51,6 +51,7 @@ export async function runEntityMigration(config: MigrationConfig): Promise<void>
 
 /**
  * Create the entity tables.
+ * Note: Ownership is tracked via entity_members (role = 'owner'), not entities.owner_user_id.
  */
 async function createEntityTables(
   client: ReturnType<typeof import('postgres')>,
@@ -59,7 +60,7 @@ async function createEntityTables(
 ): Promise<void> {
   console.log('Creating entity tables...');
 
-  // Create entities table
+  // Create entities table (ownership tracked via entity_members)
   await client.unsafe(`
     CREATE TABLE IF NOT EXISTS ${prefix}entities (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -68,7 +69,6 @@ async function createEntityTables(
       display_name VARCHAR(255) NOT NULL,
       description TEXT,
       avatar_url TEXT,
-      owner_user_id UUID NOT NULL,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )
@@ -80,22 +80,18 @@ async function createEntityTables(
   `);
 
   await client.unsafe(`
-    CREATE INDEX IF NOT EXISTS ${indexPrefix}_entities_owner_idx
-    ON ${prefix}entities (owner_user_id)
-  `);
-
-  await client.unsafe(`
     CREATE INDEX IF NOT EXISTS ${indexPrefix}_entities_type_idx
     ON ${prefix}entities (entity_type)
   `);
 
-  // Create entity_members table
+  // Create entity_members table (tracks all user-entity relationships including ownership)
   await client.unsafe(`
     CREATE TABLE IF NOT EXISTS ${prefix}entity_members (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       entity_id UUID NOT NULL REFERENCES ${prefix}entities(id) ON DELETE CASCADE,
-      user_id UUID NOT NULL,
-      role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'manager', 'viewer')),
+      user_id VARCHAR(128) NOT NULL,
+      role VARCHAR(20) NOT NULL CHECK (role IN ('owner', 'admin', 'member')),
+      is_active BOOLEAN NOT NULL DEFAULT true,
       joined_at TIMESTAMPTZ DEFAULT NOW(),
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -118,15 +114,20 @@ async function createEntityTables(
     ON ${prefix}entity_members (user_id)
   `);
 
+  await client.unsafe(`
+    CREATE INDEX IF NOT EXISTS ${indexPrefix}_entity_members_active_idx
+    ON ${prefix}entity_members (is_active)
+  `);
+
   // Create entity_invitations table
   await client.unsafe(`
     CREATE TABLE IF NOT EXISTS ${prefix}entity_invitations (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       entity_id UUID NOT NULL REFERENCES ${prefix}entities(id) ON DELETE CASCADE,
       email VARCHAR(255) NOT NULL,
-      role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'manager', 'viewer')),
+      role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'member')),
       status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined', 'expired')),
-      invited_by_user_id UUID NOT NULL,
+      invited_by_user_id VARCHAR(128) NOT NULL,
       token VARCHAR(64) NOT NULL UNIQUE,
       expires_at TIMESTAMPTZ NOT NULL,
       accepted_at TIMESTAMPTZ,
@@ -199,6 +200,8 @@ async function addEntityIdToProjects(
 
 /**
  * Create personal entities for existing users.
+ * Uses firebase_uid as the user identifier.
+ * Personal entities use role = 'admin' (not 'owner' - owner role is for organizations).
  */
 async function migrateUsersToPersonalEntities(
   client: ReturnType<typeof import('postgres')>,
@@ -206,15 +209,20 @@ async function migrateUsersToPersonalEntities(
 ): Promise<void> {
   console.log('Migrating users to personal entities...');
 
-  // Get users without personal entities
+  // Get users without personal entities (check via entity_members with role = 'admin')
   const usersWithoutEntities = await client.unsafe(`
-    SELECT u.id, u.email, u.display_name,
+    SELECT u.firebase_uid, u.email, u.display_name,
            COALESCE(s.organization_path, SUBSTRING(MD5(RANDOM()::TEXT) FROM 1 FOR 8)) as slug_source
     FROM ${prefix}users u
-    LEFT JOIN ${prefix}user_settings s ON u.id = s.user_id
-    WHERE NOT EXISTS (
-      SELECT 1 FROM ${prefix}entities e
-      WHERE e.owner_user_id = u.id AND e.entity_type = 'personal'
+    LEFT JOIN ${prefix}user_settings s ON u.firebase_uid = s.firebase_uid
+    WHERE u.firebase_uid IS NOT NULL
+    AND NOT EXISTS (
+      SELECT 1 FROM ${prefix}entity_members em
+      INNER JOIN ${prefix}entities e ON em.entity_id = e.id
+      WHERE em.user_id = u.firebase_uid
+        AND em.role = 'admin'
+        AND em.is_active = true
+        AND e.entity_type = 'personal'
     )
   `);
 
@@ -223,19 +231,20 @@ async function migrateUsersToPersonalEntities(
     // Generate a unique slug (8 chars, lowercase alphanumeric)
     const slug = generateSlug(user.slug_source);
     const displayName = user.display_name || user.email?.split('@')[0] || 'Personal';
+    const firebaseUid = user.firebase_uid;
 
     try {
       // Create personal entity
       const [entity] = await client.unsafe(`
-        INSERT INTO ${prefix}entities (entity_slug, entity_type, display_name, owner_user_id)
-        VALUES ('${slug}', 'personal', '${displayName.replace(/'/g, "''")}', '${user.id}')
+        INSERT INTO ${prefix}entities (entity_slug, entity_type, display_name)
+        VALUES ('${slug}', 'personal', '${displayName.replace(/'/g, "''")}')
         RETURNING id
       `);
 
-      // Add user as admin member
+      // Add user as admin (personal entities use 'admin' role, not 'owner')
       await client.unsafe(`
-        INSERT INTO ${prefix}entity_members (entity_id, user_id, role)
-        VALUES ('${entity.id}', '${user.id}', 'admin')
+        INSERT INTO ${prefix}entity_members (entity_id, user_id, role, is_active)
+        VALUES ('${entity.id}', '${firebaseUid}', 'admin', true)
       `);
 
       migratedCount++;
@@ -244,14 +253,14 @@ async function migrateUsersToPersonalEntities(
       if (error.code === '23505') {
         const newSlug = generateSlug();
         const [entity] = await client.unsafe(`
-          INSERT INTO ${prefix}entities (entity_slug, entity_type, display_name, owner_user_id)
-          VALUES ('${newSlug}', 'personal', '${displayName.replace(/'/g, "''")}', '${user.id}')
+          INSERT INTO ${prefix}entities (entity_slug, entity_type, display_name)
+          VALUES ('${newSlug}', 'personal', '${displayName.replace(/'/g, "''")}')
           RETURNING id
         `);
 
         await client.unsafe(`
-          INSERT INTO ${prefix}entity_members (entity_id, user_id, role)
-          VALUES ('${entity.id}', '${user.id}', 'admin')
+          INSERT INTO ${prefix}entity_members (entity_id, user_id, role, is_active)
+          VALUES ('${entity.id}', '${firebaseUid}', 'admin', true)
         `);
 
         migratedCount++;
@@ -266,6 +275,7 @@ async function migrateUsersToPersonalEntities(
 
 /**
  * Populate entity_id for existing projects.
+ * Uses entity_members with role = 'admin' to find personal entity membership.
  */
 async function populateProjectEntityIds(
   client: ReturnType<typeof import('postgres')>,
@@ -273,12 +283,15 @@ async function populateProjectEntityIds(
 ): Promise<void> {
   console.log('Populating entity_id for existing projects...');
 
-  // Update projects to use owner's personal entity
+  // Update projects to use user's personal entity (via entity_members with admin role)
   const result = await client.unsafe(`
     UPDATE ${prefix}projects p
     SET entity_id = e.id
     FROM ${prefix}entities e
-    WHERE p.user_id = e.owner_user_id
+    INNER JOIN ${prefix}entity_members em ON em.entity_id = e.id
+    WHERE p.user_id = em.user_id
+    AND em.role = 'admin'
+    AND em.is_active = true
     AND e.entity_type = 'personal'
     AND p.entity_id IS NULL
   `);
