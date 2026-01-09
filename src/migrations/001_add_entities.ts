@@ -99,6 +99,22 @@ async function createEntityTables(
     )
   `);
 
+  // Add is_active column if it doesn't exist (for upgrading existing tables)
+  await client.unsafe(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = '${prefix.replace('.', '')}'
+        AND table_name = 'entity_members'
+        AND column_name = 'is_active'
+      ) THEN
+        ALTER TABLE ${prefix}entity_members
+        ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT true;
+      END IF;
+    END $$;
+  `);
+
   await client.unsafe(`
     CREATE UNIQUE INDEX IF NOT EXISTS ${indexPrefix}_entity_members_entity_user_idx
     ON ${prefix}entity_members (entity_id, user_id)
@@ -209,22 +225,57 @@ async function migrateUsersToPersonalEntities(
 ): Promise<void> {
   console.log('Migrating users to personal entities...');
 
-  // Get users without personal entities (check via entity_members with role = 'admin')
-  const usersWithoutEntities = await client.unsafe(`
-    SELECT u.firebase_uid, u.email, u.display_name,
-           COALESCE(s.organization_path, SUBSTRING(MD5(RANDOM()::TEXT) FROM 1 FOR 8)) as slug_source
-    FROM ${prefix}users u
-    LEFT JOIN ${prefix}user_settings s ON u.firebase_uid = s.firebase_uid
-    WHERE u.firebase_uid IS NOT NULL
-    AND NOT EXISTS (
-      SELECT 1 FROM ${prefix}entity_members em
-      INNER JOIN ${prefix}entities e ON em.entity_id = e.id
-      WHERE em.user_id = u.firebase_uid
-        AND em.role = 'admin'
-        AND em.is_active = true
-        AND e.entity_type = 'personal'
-    )
+  // Check if user_settings table exists and has firebase_uid column
+  const schemaName = prefix.replace('.', '');
+  const settingsColumnCheck = await client.unsafe(`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_schema = '${schemaName}'
+    AND table_name = 'user_settings'
+    AND column_name IN ('firebase_uid', 'user_id')
   `);
+
+  const settingsHasFirebaseUid = settingsColumnCheck.some((c: any) => c.column_name === 'firebase_uid');
+  const settingsHasUserId = settingsColumnCheck.some((c: any) => c.column_name === 'user_id');
+  const settingsJoinColumn = settingsHasFirebaseUid ? 'firebase_uid' : (settingsHasUserId ? 'user_id' : null);
+
+  // Build query based on whether user_settings exists and which column it has
+  let usersQuery: string;
+  if (settingsJoinColumn) {
+    usersQuery = `
+      SELECT u.firebase_uid, u.email, u.display_name,
+             COALESCE(s.organization_path, SUBSTRING(MD5(RANDOM()::TEXT) FROM 1 FOR 8)) as slug_source
+      FROM ${prefix}users u
+      LEFT JOIN ${prefix}user_settings s ON u.firebase_uid = s.${settingsJoinColumn}
+      WHERE u.firebase_uid IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM ${prefix}entity_members em
+        INNER JOIN ${prefix}entities e ON em.entity_id = e.id
+        WHERE em.user_id = u.firebase_uid
+          AND em.role = 'admin'
+          AND em.is_active = true
+          AND e.entity_type = 'personal'
+      )
+    `;
+  } else {
+    // No user_settings table or no matching column - just use users table
+    usersQuery = `
+      SELECT u.firebase_uid, u.email, u.display_name,
+             SUBSTRING(MD5(RANDOM()::TEXT) FROM 1 FOR 8) as slug_source
+      FROM ${prefix}users u
+      WHERE u.firebase_uid IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM ${prefix}entity_members em
+        INNER JOIN ${prefix}entities e ON em.entity_id = e.id
+        WHERE em.user_id = u.firebase_uid
+          AND em.role = 'admin'
+          AND em.is_active = true
+          AND e.entity_type = 'personal'
+      )
+    `;
+  }
+
+  // Get users without personal entities (check via entity_members with role = 'admin')
+  const usersWithoutEntities = await client.unsafe(usersQuery);
 
   let migratedCount = 0;
   for (const user of usersWithoutEntities) {
