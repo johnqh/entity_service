@@ -19,13 +19,15 @@ export interface MigrationConfig {
   indexPrefix: string;
   /** Whether to also add entity_id to projects table */
   migrateProjects?: boolean;
+  /** Whether to migrate existing users to personal entities (default: true) */
+  migrateUsers?: boolean;
 }
 
 /**
  * Run the full entity migration.
  */
 export async function runEntityMigration(config: MigrationConfig): Promise<void> {
-  const { client, schemaName, indexPrefix, migrateProjects = true } = config;
+  const { client, schemaName, indexPrefix, migrateProjects = true, migrateUsers = true } = config;
   const prefix = `${schemaName}.`;
 
   console.log(`Running entity migration for schema: ${schemaName}`);
@@ -39,7 +41,9 @@ export async function runEntityMigration(config: MigrationConfig): Promise<void>
   }
 
   // Step 3: Migrate existing users to personal entities
-  await migrateUsersToPersonalEntities(client, prefix);
+  if (migrateUsers) {
+    await migrateUsersToPersonalEntities(client, prefix);
+  }
 
   // Step 4: Populate entity_id for existing projects
   if (migrateProjects) {
