@@ -271,6 +271,37 @@ export class InvitationHelper {
   }
 
   /**
+   * Renew an invitation with a new expiration date.
+   * Only pending invitations can be renewed.
+   * @param invitationId - The invitation ID to renew
+   * @returns The renewed invitation
+   */
+  async renewInvitation(invitationId: string): Promise<EntityInvitation> {
+    const invitation = await this.getInvitation(invitationId);
+
+    if (!invitation) {
+      throw new Error('Invitation not found');
+    }
+
+    if (invitation.status !== InvitationStatus.PENDING) {
+      throw new Error('Only pending invitations can be renewed');
+    }
+
+    const newExpiresAt = calculateInvitationExpiry();
+
+    const [renewed] = await this.config.db
+      .update(this.config.invitationsTable)
+      .set({
+        expires_at: new Date(newExpiresAt),
+        updated_at: new Date(),
+      })
+      .where(eq(this.config.invitationsTable.id, invitationId))
+      .returning();
+
+    return this.mapRecordToInvitation(renewed);
+  }
+
+  /**
    * Process pending invitations for a new user.
    * Called when a user signs up to auto-accept any pending invitations.
    * @param firebaseUid - The Firebase UID of the new user

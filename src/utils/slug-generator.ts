@@ -90,12 +90,16 @@ export function generateUniqueSlug(
   return generateEntitySlug();
 }
 
+/** Default invitation expiry in days */
+export const INVITATION_EXPIRY_DAYS = 14;
+
 /**
- * Calculate invitation expiry date (7 days from now).
+ * Calculate invitation expiry date (14 days from now).
+ * @param days - Number of days until expiry (default 14)
  * @returns ISO 8601 string for expiry date
  */
-export function calculateInvitationExpiry(): string {
+export function calculateInvitationExpiry(days: number = INVITATION_EXPIRY_DAYS): string {
   const expiryDate = new Date();
-  expiryDate.setDate(expiryDate.getDate() + 7);
+  expiryDate.setDate(expiryDate.getDate() + days);
   return expiryDate.toISOString();
 }
