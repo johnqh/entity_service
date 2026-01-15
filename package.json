@@ -1,6 +1,6 @@
 {
   "name": "@sudobility/entity_service",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "Shared entity/organization management library for multi-tenant workspaces",
   "type": "module",
   "main": "./dist/index.js",
@@ -48,13 +48,13 @@
   "author": "Sudobility",
   "license": "MIT",
   "peerDependencies": {
-    "@sudobility/types": "^1.9.44",
+    "@sudobility/types": "^1.9.45",
     "drizzle-orm": "^0.45.0",
     "hono": "^4.0.0"
   },
   "devDependencies": {
     "vitest": "^4.0.4",
-    "@sudobility/types": "^1.9.44",
+    "@sudobility/types": "^1.9.45",
     "@types/bun": "latest",
     "@types/node": "^24.0.0",
     "@typescript-eslint/eslint-plugin": "^8.50.0",

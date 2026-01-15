@@ -81,7 +81,7 @@ export interface ListEntitiesOptions {
  */
 export interface ListMembersOptions {
   /** Filter by role */
-  role?: 'owner' | 'admin' | 'member';
+  role?: 'owner' | 'manager' | 'member';
   /** Filter by active status */
   isActive?: boolean;
   /** Maximum number of results */

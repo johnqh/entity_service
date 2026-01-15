@@ -43,11 +43,11 @@ export class EntityHelper {
       })
       .returning();
 
-    // Add user as admin (personal entities use admin role, not owner)
+    // Add user as manager (personal entities use manager role, not owner)
     await this.config.db.insert(this.config.membersTable).values({
       entity_id: entity.id,
       user_id: firebaseUid,
-      role: EntityRole.ADMIN,
+      role: EntityRole.MANAGER,
       is_active: true,
     });
 
@@ -64,7 +64,7 @@ export class EntityHelper {
     firebaseUid: string,
     email?: string
   ): Promise<Entity> {
-    // Check for existing personal entity where user is admin
+    // Check for existing personal entity where user is manager
     const existing = await this.config.db
       .select({ entity: this.config.entitiesTable })
       .from(this.config.membersTable)
@@ -75,7 +75,7 @@ export class EntityHelper {
       .where(
         and(
           eq(this.config.membersTable.user_id, firebaseUid),
-          eq(this.config.membersTable.role, EntityRole.ADMIN),
+          eq(this.config.membersTable.role, EntityRole.MANAGER),
           eq(this.config.membersTable.is_active, true),
           eq(this.config.entitiesTable.entity_type, EntityType.PERSONAL)
         )

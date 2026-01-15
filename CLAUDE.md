@@ -55,10 +55,10 @@ bun run clean        # Remove dist/
 
 ### Roles & Permissions
 
-| Permission | Admin | Manager | Viewer |
+| Permission | Owner | Manager | Member |
 |------------|-------|---------|--------|
 | View entity | Yes | Yes | Yes |
-| Edit entity | Yes | No | No |
+| Edit entity | Yes | Yes | No |
 | Delete entity | Yes | No | No |
 | Manage members | Yes | No | No |
 | Invite members | Yes | No | No |
@@ -67,7 +67,7 @@ bun run clean        # Remove dist/
 | View projects | Yes | Yes | Yes |
 
 ### Invitation Flow
-1. Admin creates invitation with email + role
+1. Owner creates invitation with email + role
 2. Invitation stored with entity reference
 3. On user signup, pending invitations auto-accepted
 4. User becomes member of invited entities

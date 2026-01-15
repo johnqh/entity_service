@@ -86,7 +86,7 @@ export function createEntitiesTablePublic(indexPrefix: string) {
 /**
  * Create an entity_members table for a specific PostgreSQL schema.
  * This table manages all user-entity relationships including ownership.
- * Role can be: owner, admin, manager, viewer
+ * Role can be: owner, manager, member
  */
 export function createEntityMembersTable(schema: any, indexPrefix: string) {
   return schema.table(
@@ -117,7 +117,7 @@ export function createEntityMembersTable(schema: any, indexPrefix: string) {
 /**
  * Create an entity_members table for the public schema.
  * This table manages all user-entity relationships including ownership.
- * Role can be: owner, admin, manager, viewer
+ * Role can be: owner, manager, member
  */
 export function createEntityMembersTablePublic(indexPrefix: string) {
   return pgTable(
@@ -357,7 +357,7 @@ export async function initEntityTables(
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       entity_id UUID NOT NULL REFERENCES ${prefix}entities(id) ON DELETE CASCADE,
       user_id VARCHAR(128) NOT NULL,
-      role VARCHAR(20) NOT NULL CHECK (role IN ('owner', 'admin', 'member')),
+      role VARCHAR(20) NOT NULL CHECK (role IN ('owner', 'manager', 'member')),
       is_active BOOLEAN NOT NULL DEFAULT true,
       joined_at TIMESTAMPTZ DEFAULT NOW(),
       created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -392,7 +392,7 @@ export async function initEntityTables(
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       entity_id UUID NOT NULL REFERENCES ${prefix}entities(id) ON DELETE CASCADE,
       email VARCHAR(255) NOT NULL,
-      role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'member')),
+      role VARCHAR(20) NOT NULL CHECK (role IN ('manager', 'member')),
       status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined', 'expired')),
       invited_by_user_id VARCHAR(128) NOT NULL,
       token VARCHAR(64) NOT NULL UNIQUE,

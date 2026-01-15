@@ -75,12 +75,12 @@ export class PermissionHelper {
   }
 
   /**
-   * Check if user is an admin of an entity.
-   * Owner also has admin privileges.
+   * Check if user is a manager of an entity.
+   * Owner also has manager privileges.
    */
-  async isAdmin(entityId: string, userId: string): Promise<boolean> {
+  async isManager(entityId: string, userId: string): Promise<boolean> {
     const role = await this.getUserRole(entityId, userId);
-    return role === EntityRole.ADMIN || role === EntityRole.OWNER;
+    return role === EntityRole.MANAGER || role === EntityRole.OWNER;
   }
 
   /**
@@ -232,7 +232,7 @@ export class PermissionHelper {
     permission: keyof EntityPermissions
   ): EntityRole | null {
     // Check from lowest to highest privilege
-    const roles = [EntityRole.MEMBER, EntityRole.ADMIN, EntityRole.OWNER];
+    const roles = [EntityRole.MEMBER, EntityRole.MANAGER, EntityRole.OWNER];
 
     for (const role of roles) {
       if (ROLE_PERMISSIONS[role][permission]) {

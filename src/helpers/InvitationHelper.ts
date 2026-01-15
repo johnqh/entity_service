@@ -262,7 +262,7 @@ export class InvitationHelper {
   }
 
   /**
-   * Cancel an invitation (by entity admin).
+   * Cancel an invitation (by entity owner).
    */
   async cancelInvitation(invitationId: string): Promise<void> {
     await this.config.db

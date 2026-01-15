@@ -119,10 +119,10 @@ export function createEntityContextMiddleware(
  *
  * Usage:
  * ```typescript
- * const requireAdmin = createRequirePermissionMiddleware('canManageMembers');
+ * const requireOwner = createRequirePermissionMiddleware('canManageMembers');
  *
- * app.post('/api/v1/entities/:entitySlug/members', requireAdmin, (c) => {
- *   // Only admins can reach here
+ * app.post('/api/v1/entities/:entitySlug/members', requireOwner, (c) => {
+ *   // Only owners can reach here
  * });
  * ```
  */
@@ -149,10 +149,10 @@ export function createRequirePermissionMiddleware(
  *
  * Usage:
  * ```typescript
- * const requireAdmin = createRequireRoleMiddleware(EntityRole.ADMIN);
+ * const requireManager = createRequireRoleMiddleware(EntityRole.MANAGER);
  *
- * app.post('/api/v1/entities/:entitySlug/projects', requireAdmin, (c) => {
- *   // Only admins and owners can reach here
+ * app.post('/api/v1/entities/:entitySlug/projects', requireManager, (c) => {
+ *   // Only managers and owners can reach here
  * });
  * ```
  */
@@ -161,7 +161,7 @@ export function createRequireRoleMiddleware(
 ): MiddlewareHandler {
   const roleHierarchy: Record<EntityRole, number> = {
     [EntityRole.MEMBER]: 0,
-    [EntityRole.ADMIN]: 1,
+    [EntityRole.MANAGER]: 1,
     [EntityRole.OWNER]: 2,
   };
 
