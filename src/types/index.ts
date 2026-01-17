@@ -10,7 +10,11 @@ export {
   EntityType,
   EntityRole,
   InvitationStatus,
-  ROLE_PERMISSIONS,
+  OWNER_PERMISSIONS,
+  MANAGER_PERMISSIONS,
+  MEMBER_PERMISSIONS,
+  getPermissionsForRole,
+  hasPermission,
 } from '@sudobility/types';
 
 // Re-export interfaces as types
@@ -18,7 +22,6 @@ export type {
   Entity,
   EntityWithRole,
   EntityMember,
-  EntityMemberUser,
   EntityInvitation,
   EntityPermissions,
   CreateEntityRequest,

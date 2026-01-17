@@ -7,7 +7,7 @@ import { eq, and } from 'drizzle-orm';
 import {
   EntityRole,
   EntityType,
-  ROLE_PERMISSIONS,
+  getPermissionsForRole as getPermissionsForRoleFromTypes,
   type EntityPermissions,
   type EntityHelperConfig,
 } from '../types';
@@ -49,7 +49,7 @@ export class PermissionHelper {
    * Get permissions for a role.
    */
   getPermissionsForRole(role: EntityRole): EntityPermissions {
-    return ROLE_PERMISSIONS[role];
+    return getPermissionsForRoleFromTypes(role);
   }
 
   /**
@@ -235,7 +235,8 @@ export class PermissionHelper {
     const roles = [EntityRole.MEMBER, EntityRole.MANAGER, EntityRole.OWNER];
 
     for (const role of roles) {
-      if (ROLE_PERMISSIONS[role][permission]) {
+      const permissions = getPermissionsForRoleFromTypes(role);
+      if (permissions[permission]) {
         return role;
       }
     }
