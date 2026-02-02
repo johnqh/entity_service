@@ -221,7 +221,7 @@ async function addEntityIdToProjects(
 /**
  * Create personal entities for existing users.
  * Uses firebase_uid as the user identifier.
- * Personal entities use role = 'manager' (not 'owner' - owner role is for organizations).
+ * Personal entities use role = 'owner' (same as organizations).
  */
 async function migrateUsersToPersonalEntities(
   client: ReturnType<typeof import('postgres')>,
@@ -255,7 +255,7 @@ async function migrateUsersToPersonalEntities(
         SELECT 1 FROM ${prefix}entity_members em
         INNER JOIN ${prefix}entities e ON em.entity_id = e.id
         WHERE em.user_id = u.firebase_uid
-          AND em.role = 'manager'
+          AND em.role = 'owner'
           AND em.is_active = true
           AND e.entity_type = 'personal'
       )
@@ -271,14 +271,14 @@ async function migrateUsersToPersonalEntities(
         SELECT 1 FROM ${prefix}entity_members em
         INNER JOIN ${prefix}entities e ON em.entity_id = e.id
         WHERE em.user_id = u.firebase_uid
-          AND em.role = 'manager'
+          AND em.role = 'owner'
           AND em.is_active = true
           AND e.entity_type = 'personal'
       )
     `;
   }
 
-  // Get users without personal entities (check via entity_members with role = 'manager')
+  // Get users without personal entities (check via entity_members with role = 'owner')
   const usersWithoutEntities = await client.unsafe(usersQuery);
 
   let migratedCount = 0;
@@ -296,10 +296,10 @@ async function migrateUsersToPersonalEntities(
         RETURNING id
       `);
 
-      // Add user as manager (personal entities use 'manager' role, not 'owner')
+      // Add user as owner of their personal entity
       await client.unsafe(`
         INSERT INTO ${prefix}entity_members (entity_id, user_id, role, is_active)
-        VALUES ('${entity.id}', '${firebaseUid}', 'manager', true)
+        VALUES ('${entity.id}', '${firebaseUid}', 'owner', true)
       `);
 
       migratedCount++;
@@ -315,7 +315,7 @@ async function migrateUsersToPersonalEntities(
 
         await client.unsafe(`
           INSERT INTO ${prefix}entity_members (entity_id, user_id, role, is_active)
-          VALUES ('${entity.id}', '${firebaseUid}', 'manager', true)
+          VALUES ('${entity.id}', '${firebaseUid}', 'owner', true)
         `);
 
         migratedCount++;
@@ -330,7 +330,7 @@ async function migrateUsersToPersonalEntities(
 
 /**
  * Populate entity_id for existing projects.
- * Uses entity_members with role = 'manager' to find personal entity membership.
+ * Uses entity_members with role = 'owner' to find personal entity membership.
  */
 async function populateProjectEntityIds(
   client: ReturnType<typeof import('postgres')>,
@@ -338,14 +338,14 @@ async function populateProjectEntityIds(
 ): Promise<void> {
   console.log('Populating entity_id for existing projects...');
 
-  // Update projects to use user's personal entity (via entity_members with manager role)
+  // Update projects to use user's personal entity (via entity_members with owner role)
   const result = await client.unsafe(`
     UPDATE ${prefix}projects p
     SET entity_id = e.id
     FROM ${prefix}entities e
     INNER JOIN ${prefix}entity_members em ON em.entity_id = e.id
     WHERE p.user_id = em.user_id
-    AND em.role = 'manager'
+    AND em.role = 'owner'
     AND em.is_active = true
     AND e.entity_type = 'personal'
     AND p.entity_id IS NULL
