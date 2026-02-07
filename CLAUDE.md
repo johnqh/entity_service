@@ -8,6 +8,7 @@ Shared backend library for multi-tenant entity/organization management.
 
 - **Language**: TypeScript (strict mode)
 - **Runtime**: Bun
+- **Package Manager**: Bun (do not use npm/yarn/pnpm for installing dependencies)
 - **Build**: TypeScript compiler (dual ESM/CJS)
 - **Test**: bun:test
 - **Database**: PostgreSQL with Drizzle ORM
