@@ -219,13 +219,41 @@ export class InvitationHelper {
       throw new Error('Invitation has expired');
     }
 
-    // Add user as member with active status
-    await this.config.db.insert(this.config.membersTable).values({
-      entity_id: invitation.entityId,
-      user_id: firebaseUid,
-      role: invitation.role,
-      is_active: true,
-    });
+    // Check if user is already a member
+    const existingMember = await this.config.db
+      .select()
+      .from(this.config.membersTable)
+      .where(
+        and(
+          eq(this.config.membersTable.entity_id, invitation.entityId),
+          eq(this.config.membersTable.user_id, firebaseUid)
+        )
+      )
+      .limit(1);
+
+    if (existingMember.length > 0) {
+      // Reactivate if previously removed
+      await this.config.db
+        .update(this.config.membersTable)
+        .set({
+          role: invitation.role,
+          is_active: true,
+        })
+        .where(
+          and(
+            eq(this.config.membersTable.entity_id, invitation.entityId),
+            eq(this.config.membersTable.user_id, firebaseUid)
+          )
+        );
+    } else {
+      // Add user as member with active status
+      await this.config.db.insert(this.config.membersTable).values({
+        entity_id: invitation.entityId,
+        user_id: firebaseUid,
+        role: invitation.role,
+        is_active: true,
+      });
+    }
 
     // Mark invitation as accepted
     await this.config.db
