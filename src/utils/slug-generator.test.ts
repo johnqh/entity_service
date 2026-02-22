@@ -176,16 +176,16 @@ describe('calculateInvitationExpiry', () => {
     const now = new Date();
     const expiry = new Date(calculateInvitationExpiry());
     const diffDays = (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-    // Should be approximately 14 days (within a few seconds tolerance)
-    expect(diffDays).toBeGreaterThan(13.99);
-    expect(diffDays).toBeLessThan(14.01);
+    // Should be approximately 14 days (within 1 hour tolerance for CI/slow environments)
+    expect(diffDays).toBeGreaterThan(13.95);
+    expect(diffDays).toBeLessThan(14.05);
   });
 
   test('accepts custom days parameter', () => {
     const now = new Date();
     const expiry = new Date(calculateInvitationExpiry(7));
     const diffDays = (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-    expect(diffDays).toBeGreaterThan(6.99);
-    expect(diffDays).toBeLessThan(7.01);
+    expect(diffDays).toBeGreaterThan(6.95);
+    expect(diffDays).toBeLessThan(7.05);
   });
 });

@@ -167,3 +167,50 @@ sudojo_api (backend)
 import type { Entity, EntityMember, EntityRole } from '@sudobility/entity_service';
 import { EntityRole, hasPermission } from '@sudobility/entity_service';
 ```
+
+## Workspace Context
+
+This project is part of the **ShapeShyft** multi-project workspace at the parent directory. See `../CLAUDE.md` for the full architecture, dependency graph, and build order.
+
+## Downstream Impact
+
+| Downstream Consumer | Relationship |
+|---------------------|-------------|
+| `shapeshyft_api` | Direct dependency - uses entity middleware, helpers, and schema factories |
+
+After making changes:
+1. `bun run verify` in this project
+2. `npm publish`
+3. In `shapeshyft_api`: `bun update @sudobility/entity_service` then rebuild
+
+Note: `entity_pages` does NOT depend on this package. It uses `@sudobility/entity_client` (a separate repo).
+
+## Local Dev Workflow
+
+```bash
+# In this project:
+bun link
+
+# In shapeshyft_api:
+bun link @sudobility/entity_service
+
+# Rebuild after changes:
+bun run build
+
+# When done, unlink:
+bun unlink @sudobility/entity_service && bun install
+```
+
+## Pre-Commit Checklist
+
+```bash
+bun run verify    # Runs: typecheck -> lint -> build (does NOT include tests)
+bun test          # Run tests separately
+```
+
+## Gotchas
+
+- **Schema factory functions require a schema name argument** -- `createEntitiesTable(mySchema, 'my_app')`. Forgetting the prefix causes table name collisions.
+- **Peer dependencies (drizzle-orm, hono) must be installed by consumers** -- do not add to `dependencies`.
+- **Personal entities use userId as entitySlug** -- this is a convention other code relies on. Do not change slug generation for personal entities.
+- **Role permissions are hardcoded** in `permissions.ts`. Changing them affects all consumers.
