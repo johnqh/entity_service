@@ -9,8 +9,8 @@ Shared backend library for multi-tenant entity/organization management.
 - **Language**: TypeScript (strict mode)
 - **Runtime**: Bun
 - **Package Manager**: Bun (do not use npm/yarn/pnpm for installing dependencies)
-- **Build**: TypeScript compiler (dual ESM/CJS)
-- **Test**: bun:test
+- **Build**: TypeScript compiler (ESM-only)
+- **Test**: Vitest
 - **Database**: PostgreSQL with Drizzle ORM
 - **Framework**: Hono middleware
 
@@ -18,29 +18,34 @@ Shared backend library for multi-tenant entity/organization management.
 
 ```
 src/
-├── index.ts              # Main exports
-├── types/                # Type definitions
-│   ├── entity.ts         # Entity types
-│   ├── member.ts         # Member/role types
-│   └── invitation.ts     # Invitation types
-├── helpers/              # Business logic
-│   ├── EntityHelper.ts   # Entity CRUD operations
-│   ├── MemberHelper.ts   # Member management
-│   └── InvitationHelper.ts # Invitation handling
-├── middleware/           # Hono middleware
-│   └── entityContext.ts  # Entity context injection
-├── schema/               # Drizzle schema templates
-│   ├── entities.ts
-│   ├── entityMembers.ts
-│   └── entityInvitations.ts
-└── utils/                # Utilities
-    └── permissions.ts    # Permission checks
+├── index.ts                        # Main exports
+├── types/
+│   └── index.ts                    # Re-exports from @sudobility/types + internal config types
+├── helpers/
+│   ├── index.ts                    # Helper barrel exports
+│   ├── EntityHelper.ts             # Entity CRUD operations
+│   ├── EntityHelper.test.ts        # Entity helper tests
+│   ├── EntityMemberHelper.ts       # Member management
+│   ├── InvitationHelper.ts         # Invitation handling
+│   └── PermissionHelper.ts         # Permission checks
+├── middleware/
+│   ├── index.ts                    # Middleware barrel exports
+│   └── hono.ts                     # Entity context injection + helper factory
+├── schema/
+│   └── entities.ts                 # All schema factories + default tables + init functions
+├── migrations/
+│   ├── index.ts                    # Migration barrel exports
+│   └── 001_add_entities.ts         # Entity tables migration + user migration
+└── utils/
+    ├── index.ts                    # Utils barrel exports
+    ├── slug-generator.ts           # Slug generation, validation, invitation tokens
+    └── slug-generator.test.ts      # Slug generator tests
 ```
 
 ## Commands
 
 ```bash
-bun run build        # Build ESM + CJS
+bun run build        # Build ESM-only
 bun run verify       # All checks + build (use before commit)
 bun test             # Run tests
 bun run typecheck    # TypeScript check
@@ -51,7 +56,7 @@ bun run clean        # Remove dist/
 ## Key Concepts
 
 ### Entities
-- **Personal Entity**: Auto-created for each user (entitySlug = userId)
+- **Personal Entity**: Auto-created for each user (entitySlug = random 8-char alphanumeric)
 - **Organization**: Created by users, has members with roles
 
 ### Roles & Permissions
@@ -212,5 +217,5 @@ bun test          # Run tests separately
 
 - **Schema factory functions require a schema name argument** -- `createEntitiesTable(mySchema, 'my_app')`. Forgetting the prefix causes table name collisions.
 - **Peer dependencies (drizzle-orm, hono) must be installed by consumers** -- do not add to `dependencies`.
-- **Personal entities use userId as entitySlug** -- this is a convention other code relies on. Do not change slug generation for personal entities.
-- **Role permissions are hardcoded** in `permissions.ts`. Changing them affects all consumers.
+- **Personal entities use randomly generated slugs** (8-char alphanumeric via `generateEntitySlug()`). Slugs are not derived from userId.
+- **Role permissions are defined in `@sudobility/types`** and re-exported via `types/index.ts`. Changing them affects all consumers.

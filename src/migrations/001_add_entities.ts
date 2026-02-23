@@ -193,11 +193,11 @@ async function addEntityIdToProjects(
   const columnExists = await client.unsafe(`
     SELECT EXISTS (
       SELECT 1 FROM information_schema.columns
-      WHERE table_schema = '${prefix.replace('.', '')}'
+      WHERE table_schema = $1
       AND table_name = 'projects'
       AND column_name = 'entity_id'
     )
-  `);
+  `, [prefix.replace('.', '')]);
 
   if (!columnExists[0]?.exists) {
     // Add nullable entity_id column
@@ -233,10 +233,10 @@ async function migrateUsersToPersonalEntities(
   const schemaName = prefix.replace('.', '');
   const settingsColumnCheck = await client.unsafe(`
     SELECT column_name FROM information_schema.columns
-    WHERE table_schema = '${schemaName}'
+    WHERE table_schema = $1
     AND table_name = 'user_settings'
     AND column_name IN ('firebase_uid', 'user_id')
-  `);
+  `, [schemaName]);
 
   const settingsHasFirebaseUid = settingsColumnCheck.some((c: any) => c.column_name === 'firebase_uid');
   const settingsHasUserId = settingsColumnCheck.some((c: any) => c.column_name === 'user_id');
@@ -292,15 +292,15 @@ async function migrateUsersToPersonalEntities(
       // Create personal entity
       const [entity] = await client.unsafe(`
         INSERT INTO ${prefix}entities (entity_slug, entity_type, display_name)
-        VALUES ('${slug}', 'personal', '${displayName.replace(/'/g, "''")}')
+        VALUES ($1, 'personal', $2)
         RETURNING id
-      `);
+      `, [slug, displayName]);
 
       // Add user as owner of their personal entity
       await client.unsafe(`
         INSERT INTO ${prefix}entity_members (entity_id, user_id, role, is_active)
-        VALUES ('${entity.id}', '${firebaseUid}', 'owner', true)
-      `);
+        VALUES ($1, $2, 'owner', true)
+      `, [entity.id, firebaseUid]);
 
       migratedCount++;
     } catch (error: any) {
@@ -309,14 +309,14 @@ async function migrateUsersToPersonalEntities(
         const newSlug = generateSlug();
         const [entity] = await client.unsafe(`
           INSERT INTO ${prefix}entities (entity_slug, entity_type, display_name)
-          VALUES ('${newSlug}', 'personal', '${displayName.replace(/'/g, "''")}')
+          VALUES ($1, 'personal', $2)
           RETURNING id
-        `);
+        `, [newSlug, displayName]);
 
         await client.unsafe(`
           INSERT INTO ${prefix}entity_members (entity_id, user_id, role, is_active)
-          VALUES ('${entity.id}', '${firebaseUid}', 'owner', true)
-        `);
+          VALUES ($1, $2, 'owner', true)
+        `, [entity.id, firebaseUid]);
 
         migratedCount++;
       } else {

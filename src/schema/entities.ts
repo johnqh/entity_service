@@ -9,6 +9,7 @@
  */
 
 import {
+  type PgSchema,
   pgTable,
   uuid,
   varchar,
@@ -31,7 +32,7 @@ import {
  * @param indexPrefix - Prefix for index names to avoid conflicts
  * @returns Drizzle table definition
  */
-export function createEntitiesTable(schema: any, indexPrefix: string) {
+export function createEntitiesTable(schema: PgSchema, indexPrefix: string) {
   return schema.table(
     'entities',
     {
@@ -44,7 +45,7 @@ export function createEntitiesTable(schema: any, indexPrefix: string) {
       created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
       updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
     },
-    (table: any) => ({
+    (table: Record<string, any>) => ({
       slugIdx: uniqueIndex(`${indexPrefix}_entities_slug_idx`).on(
         table.entity_slug
       ),
@@ -88,7 +89,7 @@ export function createEntitiesTablePublic(indexPrefix: string) {
  * This table manages all user-entity relationships including ownership.
  * Role can be: owner, manager, member
  */
-export function createEntityMembersTable(schema: any, indexPrefix: string) {
+export function createEntityMembersTable(schema: PgSchema, indexPrefix: string) {
   return schema.table(
     'entity_members',
     {
@@ -101,7 +102,7 @@ export function createEntityMembersTable(schema: any, indexPrefix: string) {
       created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
       updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
     },
-    (table: any) => ({
+    (table: Record<string, any>) => ({
       entityUserUniqueIdx: uniqueIndex(
         `${indexPrefix}_entity_members_entity_user_idx`
       ).on(table.entity_id, table.user_id),
@@ -152,7 +153,7 @@ export function createEntityMembersTablePublic(indexPrefix: string) {
 /**
  * Create an entity_invitations table for a specific PostgreSQL schema.
  */
-export function createEntityInvitationsTable(schema: any, indexPrefix: string) {
+export function createEntityInvitationsTable(schema: PgSchema, indexPrefix: string) {
   return schema.table(
     'entity_invitations',
     {
@@ -168,7 +169,7 @@ export function createEntityInvitationsTable(schema: any, indexPrefix: string) {
       created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
       updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
     },
-    (table: any) => ({
+    (table: Record<string, any>) => ({
       tokenIdx: uniqueIndex(`${indexPrefix}_entity_invitations_token_idx`).on(
         table.token
       ),
