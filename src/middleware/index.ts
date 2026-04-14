@@ -9,4 +9,4 @@ export {
   createEntityHelpers,
   type EntityContext,
   type EntityContextMiddlewareOptions,
-} from './hono';
+} from "./hono";

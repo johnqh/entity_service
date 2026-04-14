@@ -3,7 +3,7 @@
  * @description Types used internally by the entity service helpers
  */
 
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 // Re-export enums as values (not just types) so they can be used at runtime
 export {
@@ -15,7 +15,7 @@ export {
   MEMBER_PERMISSIONS,
   getPermissionsForRole,
   hasPermission,
-} from '@sudobility/types';
+} from "@sudobility/types";
 
 // Re-export interfaces as types
 export type {
@@ -28,7 +28,7 @@ export type {
   UpdateEntityRequest,
   InviteMemberRequest,
   UpdateMemberRoleRequest,
-} from '@sudobility/types';
+} from "@sudobility/types";
 
 // ========================================
 // INTERNAL CONFIGURATION TYPES
@@ -72,7 +72,7 @@ export interface EntityOperationResult<T> {
  */
 export interface ListEntitiesOptions {
   /** Include only entities of this type */
-  entityType?: 'personal' | 'organization';
+  entityType?: "personal" | "organization";
   /** Maximum number of results */
   limit?: number;
   /** Offset for pagination */
@@ -84,7 +84,7 @@ export interface ListEntitiesOptions {
  */
 export interface ListMembersOptions {
   /** Filter by role */
-  role?: 'owner' | 'manager' | 'member';
+  role?: "owner" | "manager" | "member";
   /** Filter by active status */
   isActive?: boolean;
   /** Maximum number of results */
@@ -98,7 +98,7 @@ export interface ListMembersOptions {
  */
 export interface ListInvitationsOptions {
   /** Filter by status */
-  status?: 'pending' | 'accepted' | 'declined' | 'expired';
+  status?: "pending" | "accepted" | "declined" | "expired";
   /** Maximum number of results */
   limit?: number;
   /** Offset for pagination */

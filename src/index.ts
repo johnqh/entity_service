@@ -49,7 +49,7 @@ export {
   type NewEntityInvitationRecord,
   // Initialization
   initEntityTables,
-} from './schema/entities';
+} from "./schema/entities";
 
 // Helper exports
 export {
@@ -57,7 +57,7 @@ export {
   EntityMemberHelper,
   InvitationHelper,
   PermissionHelper,
-} from './helpers';
+} from "./helpers";
 
 // Middleware exports
 export {
@@ -67,7 +67,7 @@ export {
   createEntityHelpers,
   type EntityContext,
   type EntityContextMiddlewareOptions,
-} from './middleware';
+} from "./middleware";
 
 // Utility exports
 export {
@@ -76,14 +76,14 @@ export {
   normalizeSlug,
   validateSlug,
   calculateInvitationExpiry,
-} from './utils';
+} from "./utils";
 
 // Migration exports
 export {
   runEntityMigration,
   rollbackEntityMigration,
   type MigrationConfig,
-} from './migrations';
+} from "./migrations";
 
 // Type exports (re-exported from @sudobility/types)
 export {
@@ -104,7 +104,7 @@ export {
   type UpdateEntityRequest,
   type InviteMemberRequest,
   type UpdateMemberRoleRequest,
-} from './types';
+} from "./types";
 
 // Internal config types
 export type {
@@ -114,4 +114,4 @@ export type {
   ListEntitiesOptions,
   ListMembersOptions,
   ListInvitationsOptions,
-} from './types';
+} from "./types";

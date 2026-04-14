@@ -3,7 +3,7 @@
  * @description Operations for managing entity invitations
  */
 
-import { eq, and, lt } from 'drizzle-orm';
+import { eq, and, lt } from "drizzle-orm";
 import {
   EntityRole,
   InvitationStatus,
@@ -11,11 +11,8 @@ import {
   type InviteMemberRequest,
   type InvitationHelperConfig,
   type ListInvitationsOptions,
-} from '../types';
-import {
-  generateInvitationToken,
-  calculateInvitationExpiry,
-} from '../utils';
+} from "../types";
+import { generateInvitationToken, calculateInvitationExpiry } from "../utils";
 
 /**
  * Helper class for entity invitation operations.
@@ -38,7 +35,10 @@ export class InvitationHelper {
       .from(this.config.membersTable)
       .innerJoin(
         this.config.usersTable,
-        eq(this.config.membersTable.user_id, this.config.usersTable.firebase_uid)
+        eq(
+          this.config.membersTable.user_id,
+          this.config.usersTable.firebase_uid
+        )
       )
       .where(
         and(
@@ -50,7 +50,7 @@ export class InvitationHelper {
       .limit(1);
 
     if (existingMember.length > 0) {
-      throw new Error('User is already an active member of this entity');
+      throw new Error("User is already an active member of this entity");
     }
 
     // Check for existing pending invitation
@@ -67,7 +67,7 @@ export class InvitationHelper {
       .limit(1);
 
     if (existingInvite.length > 0) {
-      throw new Error('An invitation is already pending for this email');
+      throw new Error("An invitation is already pending for this email");
     }
 
     const token = generateInvitationToken();
@@ -151,7 +151,7 @@ export class InvitationHelper {
     }
 
     const results = await query;
-    return results.map((r) => this.mapRecordToInvitation(r));
+    return results.map(r => this.mapRecordToInvitation(r));
   }
 
   /**
@@ -199,11 +199,11 @@ export class InvitationHelper {
     const invitation = await this.getInvitationByToken(token);
 
     if (!invitation) {
-      throw new Error('Invitation not found');
+      throw new Error("Invitation not found");
     }
 
     if (invitation.status !== InvitationStatus.PENDING) {
-      throw new Error('Invitation is no longer pending');
+      throw new Error("Invitation is no longer pending");
     }
 
     if (new Date(invitation.expiresAt) < new Date()) {
@@ -216,7 +216,7 @@ export class InvitationHelper {
         })
         .where(eq(this.config.invitationsTable.id, invitation.id));
 
-      throw new Error('Invitation has expired');
+      throw new Error("Invitation has expired");
     }
 
     // Check if user is already a member
@@ -273,11 +273,11 @@ export class InvitationHelper {
     const invitation = await this.getInvitationByToken(token);
 
     if (!invitation) {
-      throw new Error('Invitation not found');
+      throw new Error("Invitation not found");
     }
 
     if (invitation.status !== InvitationStatus.PENDING) {
-      throw new Error('Invitation is no longer pending');
+      throw new Error("Invitation is no longer pending");
     }
 
     await this.config.db
@@ -308,11 +308,11 @@ export class InvitationHelper {
     const invitation = await this.getInvitation(invitationId);
 
     if (!invitation) {
-      throw new Error('Invitation not found');
+      throw new Error("Invitation not found");
     }
 
     if (invitation.status !== InvitationStatus.PENDING) {
-      throw new Error('Only pending invitations can be renewed');
+      throw new Error("Only pending invitations can be renewed");
     }
 
     const newExpiresAt = calculateInvitationExpiry();
@@ -346,7 +346,10 @@ export class InvitationHelper {
         await this.acceptInvitation(invitation.token, firebaseUid);
       } catch (error) {
         // Log but don't fail - user account creation is more important
-        console.error(`Failed to auto-accept invitation ${invitation.id}:`, error);
+        console.error(
+          `Failed to auto-accept invitation ${invitation.id}:`,
+          error
+        );
       }
     }
   }

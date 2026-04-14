@@ -3,14 +3,14 @@
  * @description Operations for managing entity members and their roles
  */
 
-import { eq, and } from 'drizzle-orm';
+import { eq, and } from "drizzle-orm";
 import {
   EntityRole,
   EntityType,
   type EntityMember,
   type EntityHelperConfig,
   type ListMembersOptions,
-} from '../types';
+} from "../types";
 
 /**
  * Helper class for entity member operations.
@@ -47,7 +47,10 @@ export class EntityMemberHelper {
       .from(this.config.membersTable)
       .leftJoin(
         this.config.usersTable,
-        eq(this.config.membersTable.user_id, this.config.usersTable.firebase_uid)
+        eq(
+          this.config.membersTable.user_id,
+          this.config.usersTable.firebase_uid
+        )
       )
       .where(and(...conditions))
       .$dynamic();
@@ -96,7 +99,10 @@ export class EntityMemberHelper {
       .from(this.config.membersTable)
       .leftJoin(
         this.config.usersTable,
-        eq(this.config.membersTable.user_id, this.config.usersTable.firebase_uid)
+        eq(
+          this.config.membersTable.user_id,
+          this.config.usersTable.firebase_uid
+        )
       )
       .where(and(...conditions))
       .limit(1);
@@ -206,7 +212,9 @@ export class EntityMemberHelper {
   ): Promise<EntityMember> {
     // Cannot assign owner role via this method
     if (role === EntityRole.OWNER) {
-      throw new Error('Cannot assign owner role. Use ownership transfer instead.');
+      throw new Error(
+        "Cannot assign owner role. Use ownership transfer instead."
+      );
     }
 
     // Check constraints for personal entities
@@ -217,13 +225,13 @@ export class EntityMemberHelper {
       .limit(1);
 
     if (entity.length > 0 && entity[0].entity_type === EntityType.PERSONAL) {
-      throw new Error('Cannot change roles in personal entities');
+      throw new Error("Cannot change roles in personal entities");
     }
 
     // Check if user is the owner - cannot change owner's role
     const currentMember = await this.getMember(entityId, userId);
     if (currentMember?.role === EntityRole.OWNER) {
-      throw new Error('Cannot change the owner\'s role');
+      throw new Error("Cannot change the owner's role");
     }
 
     const [updated] = await this.config.db
@@ -242,7 +250,7 @@ export class EntityMemberHelper {
       .returning();
 
     if (!updated) {
-      throw new Error('Member not found or inactive');
+      throw new Error("Member not found or inactive");
     }
 
     // Fetch user info for response
@@ -272,17 +280,17 @@ export class EntityMemberHelper {
       .limit(1);
 
     if (entity.length > 0 && entity[0].entity_type === EntityType.PERSONAL) {
-      throw new Error('Cannot remove members from personal entities');
+      throw new Error("Cannot remove members from personal entities");
     }
 
     // Check if user is the owner - cannot remove owner
     const member = await this.getMember(entityId, userId);
     if (!member) {
-      throw new Error('Member not found');
+      throw new Error("Member not found");
     }
 
     if (member.role === EntityRole.OWNER) {
-      throw new Error('Cannot remove the entity owner');
+      throw new Error("Cannot remove the entity owner");
     }
 
     // Soft delete - set is_active = false
@@ -313,7 +321,11 @@ export class EntityMemberHelper {
    */
   private mapRecordToMember(
     record: any,
-    user: { id: string; email: string | null; displayName: string | null } | null
+    user: {
+      id: string;
+      email: string | null;
+      displayName: string | null;
+    } | null
   ): EntityMember {
     const member: EntityMember = {
       id: record.id,

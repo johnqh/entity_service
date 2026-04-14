@@ -3,17 +3,17 @@
  * @description Middleware to inject entity context into Hono request handlers
  */
 
-import type { Context, MiddlewareHandler } from 'hono';
-import { EntityHelper } from '../helpers/EntityHelper';
-import { EntityMemberHelper } from '../helpers/EntityMemberHelper';
-import { InvitationHelper } from '../helpers/InvitationHelper';
-import { PermissionHelper } from '../helpers/PermissionHelper';
+import type { Context, MiddlewareHandler } from "hono";
+import { EntityHelper } from "../helpers/EntityHelper";
+import { EntityMemberHelper } from "../helpers/EntityMemberHelper";
+import { InvitationHelper } from "../helpers/InvitationHelper";
+import { PermissionHelper } from "../helpers/PermissionHelper";
 import {
   EntityRole,
   type Entity,
   type EntityPermissions,
   type InvitationHelperConfig,
-} from '../types';
+} from "../types";
 
 /**
  * Entity context available in Hono handlers.
@@ -60,31 +60,31 @@ export function createEntityContextMiddleware(
 ): MiddlewareHandler {
   const entityHelper = new EntityHelper(config);
   const permissionHelper = new PermissionHelper(config);
-  const slugParam = options.entitySlugParam ?? 'entitySlug';
+  const slugParam = options.entitySlugParam ?? "entitySlug";
 
   return async (c, next) => {
     const entitySlug = c.req.param(slugParam);
 
     if (!entitySlug) {
-      return c.json({ error: 'Entity slug is required' }, 400);
+      return c.json({ error: "Entity slug is required" }, 400);
     }
 
     const userId = options.getUserId(c);
 
     if (!userId && !options.allowUnauthenticated) {
-      return c.json({ error: 'Authentication required' }, 401);
+      return c.json({ error: "Authentication required" }, 401);
     }
 
     // Get entity by slug
     const entity = await entityHelper.getEntityBySlug(entitySlug);
 
     if (!entity) {
-      return c.json({ error: 'Entity not found' }, 404);
+      return c.json({ error: "Entity not found" }, 404);
     }
 
     // If unauthenticated access is allowed and no user, continue without role
     if (!userId && options.allowUnauthenticated) {
-      c.set('entity', entity);
+      c.set("entity", entity);
       await next();
       return;
     }
@@ -93,7 +93,7 @@ export function createEntityContextMiddleware(
     const userRole = await permissionHelper.getUserRole(entity.id, userId!);
 
     if (!userRole) {
-      return c.json({ error: 'Access denied' }, 403);
+      return c.json({ error: "Access denied" }, 403);
     }
 
     const permissions = permissionHelper.getPermissionsForRole(userRole);
@@ -105,10 +105,10 @@ export function createEntityContextMiddleware(
       permissions,
     };
 
-    c.set('entityContext', entityContext);
-    c.set('entity', entity);
-    c.set('userRole', userRole);
-    c.set('permissions', permissions);
+    c.set("entityContext", entityContext);
+    c.set("entity", entity);
+    c.set("userRole", userRole);
+    c.set("permissions", permissions);
 
     await next();
   };
@@ -130,14 +130,14 @@ export function createRequirePermissionMiddleware(
   permission: keyof EntityPermissions
 ): MiddlewareHandler {
   return async (c, next) => {
-    const permissions = c.get('permissions') as EntityPermissions | undefined;
+    const permissions = c.get("permissions") as EntityPermissions | undefined;
 
     if (!permissions) {
-      return c.json({ error: 'Entity context not found' }, 500);
+      return c.json({ error: "Entity context not found" }, 500);
     }
 
     if (!permissions[permission]) {
-      return c.json({ error: 'Insufficient permissions' }, 403);
+      return c.json({ error: "Insufficient permissions" }, 403);
     }
 
     await next();
@@ -166,14 +166,14 @@ export function createRequireRoleMiddleware(
   };
 
   return async (c, next) => {
-    const userRole = c.get('userRole') as EntityRole | undefined;
+    const userRole = c.get("userRole") as EntityRole | undefined;
 
     if (!userRole) {
-      return c.json({ error: 'Entity context not found' }, 500);
+      return c.json({ error: "Entity context not found" }, 500);
     }
 
     if (roleHierarchy[userRole] < roleHierarchy[minimumRole]) {
-      return c.json({ error: 'Insufficient role' }, 403);
+      return c.json({ error: "Insufficient role" }, 403);
     }
 
     await next();
@@ -202,7 +202,7 @@ export function createEntityHelpers(config: InvitationHelperConfig) {
 /**
  * Type augmentation for Hono context.
  */
-declare module 'hono' {
+declare module "hono" {
   interface ContextVariableMap {
     entityContext: EntityContext;
     entity: Entity;

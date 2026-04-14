@@ -4,7 +4,7 @@
  */
 
 /** Characters allowed in entity slugs (lowercase alphanumeric) */
-const SLUG_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
+const SLUG_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
 
 /** Default length for generated entity slugs */
 const DEFAULT_SLUG_LENGTH = 8;
@@ -17,9 +17,11 @@ const INVITATION_TOKEN_LENGTH = 32;
  * @param length - Length of the slug (default 8, max 12)
  * @returns A random alphanumeric slug
  */
-export function generateEntitySlug(length: number = DEFAULT_SLUG_LENGTH): string {
+export function generateEntitySlug(
+  length: number = DEFAULT_SLUG_LENGTH
+): string {
   const actualLength = Math.min(Math.max(length, 8), 12);
-  let slug = '';
+  let slug = "";
   for (let i = 0; i < actualLength; i++) {
     slug += SLUG_CHARS[Math.floor(Math.random() * SLUG_CHARS.length)];
   }
@@ -33,7 +35,7 @@ export function generateEntitySlug(length: number = DEFAULT_SLUG_LENGTH): string
 export function generateInvitationToken(): string {
   const bytes = new Uint8Array(INVITATION_TOKEN_LENGTH);
   crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
 }
 
 /**
@@ -45,7 +47,7 @@ export function generateInvitationToken(): string {
 export function normalizeSlug(input: string): string {
   return input
     .toLowerCase()
-    .replace(/[^a-z0-9]/g, '')
+    .replace(/[^a-z0-9]/g, "")
     .slice(0, 12);
 }
 
@@ -98,7 +100,9 @@ export const INVITATION_EXPIRY_DAYS = 14;
  * @param days - Number of days until expiry (default 14)
  * @returns ISO 8601 string for expiry date
  */
-export function calculateInvitationExpiry(days: number = INVITATION_EXPIRY_DAYS): string {
+export function calculateInvitationExpiry(
+  days: number = INVITATION_EXPIRY_DAYS
+): string {
   const expiryDate = new Date();
   expiryDate.setDate(expiryDate.getDate() + days);
   return expiryDate.toISOString();

@@ -2,4 +2,4 @@
  * @fileoverview Utility Exports
  */
 
-export * from './slug-generator';
+export * from "./slug-generator";

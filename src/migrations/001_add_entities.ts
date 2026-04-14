@@ -9,10 +9,9 @@
  * 4. Populates entity_id for existing projects
  */
 
-
 export interface MigrationConfig {
   /** postgres-js client instance */
-  client: ReturnType<typeof import('postgres')>;
+  client: ReturnType<typeof import("postgres")>;
   /** PostgreSQL schema name (e.g., 'whisperly', 'shapeshyft') */
   schemaName: string;
   /** Index prefix for avoiding name conflicts */
@@ -26,8 +25,16 @@ export interface MigrationConfig {
 /**
  * Run the full entity migration.
  */
-export async function runEntityMigration(config: MigrationConfig): Promise<void> {
-  const { client, schemaName, indexPrefix, migrateProjects = true, migrateUsers = true } = config;
+export async function runEntityMigration(
+  config: MigrationConfig
+): Promise<void> {
+  const {
+    client,
+    schemaName,
+    indexPrefix,
+    migrateProjects = true,
+    migrateUsers = true,
+  } = config;
   const prefix = `${schemaName}.`;
 
   console.log(`Running entity migration for schema: ${schemaName}`);
@@ -50,7 +57,7 @@ export async function runEntityMigration(config: MigrationConfig): Promise<void>
     await populateProjectEntityIds(client, prefix);
   }
 
-  console.log('Entity migration completed successfully');
+  console.log("Entity migration completed successfully");
 }
 
 /**
@@ -58,11 +65,11 @@ export async function runEntityMigration(config: MigrationConfig): Promise<void>
  * Note: Ownership is tracked via entity_members (role = 'owner'), not entities.owner_user_id.
  */
 async function createEntityTables(
-  client: ReturnType<typeof import('postgres')>,
+  client: ReturnType<typeof import("postgres")>,
   prefix: string,
   indexPrefix: string
 ): Promise<void> {
-  console.log('Creating entity tables...');
+  console.log("Creating entity tables...");
 
   // Create entities table (ownership tracked via entity_members)
   await client.unsafe(`
@@ -109,7 +116,7 @@ async function createEntityTables(
     BEGIN
       IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
-        WHERE table_schema = '${prefix.replace('.', '')}'
+        WHERE table_schema = '${prefix.replace(".", "")}'
         AND table_name = 'entity_members'
         AND column_name = 'is_active'
       ) THEN
@@ -176,28 +183,31 @@ async function createEntityTables(
     ON ${prefix}entity_invitations (status)
   `);
 
-  console.log('Entity tables created');
+  console.log("Entity tables created");
 }
 
 /**
  * Add entity_id column to projects table.
  */
 async function addEntityIdToProjects(
-  client: ReturnType<typeof import('postgres')>,
+  client: ReturnType<typeof import("postgres")>,
   prefix: string,
   indexPrefix: string
 ): Promise<void> {
-  console.log('Adding entity_id to projects table...');
+  console.log("Adding entity_id to projects table...");
 
   // Check if column already exists
-  const columnExists = await client.unsafe(`
+  const columnExists = await client.unsafe(
+    `
     SELECT EXISTS (
       SELECT 1 FROM information_schema.columns
       WHERE table_schema = $1
       AND table_name = 'projects'
       AND column_name = 'entity_id'
     )
-  `, [prefix.replace('.', '')]);
+  `,
+    [prefix.replace(".", "")]
+  );
 
   if (!columnExists[0]?.exists) {
     // Add nullable entity_id column
@@ -212,9 +222,9 @@ async function addEntityIdToProjects(
       ON ${prefix}projects (entity_id)
     `);
 
-    console.log('entity_id column added to projects');
+    console.log("entity_id column added to projects");
   } else {
-    console.log('entity_id column already exists in projects');
+    console.log("entity_id column already exists in projects");
   }
 }
 
@@ -224,23 +234,34 @@ async function addEntityIdToProjects(
  * Personal entities use role = 'owner' (same as organizations).
  */
 async function migrateUsersToPersonalEntities(
-  client: ReturnType<typeof import('postgres')>,
+  client: ReturnType<typeof import("postgres")>,
   prefix: string
 ): Promise<void> {
-  console.log('Migrating users to personal entities...');
+  console.log("Migrating users to personal entities...");
 
   // Check if user_settings table exists and has firebase_uid column
-  const schemaName = prefix.replace('.', '');
-  const settingsColumnCheck = await client.unsafe(`
+  const schemaName = prefix.replace(".", "");
+  const settingsColumnCheck = await client.unsafe(
+    `
     SELECT column_name FROM information_schema.columns
     WHERE table_schema = $1
     AND table_name = 'user_settings'
     AND column_name IN ('firebase_uid', 'user_id')
-  `, [schemaName]);
+  `,
+    [schemaName]
+  );
 
-  const settingsHasFirebaseUid = settingsColumnCheck.some((c: any) => c.column_name === 'firebase_uid');
-  const settingsHasUserId = settingsColumnCheck.some((c: any) => c.column_name === 'user_id');
-  const settingsJoinColumn = settingsHasFirebaseUid ? 'firebase_uid' : (settingsHasUserId ? 'user_id' : null);
+  const settingsHasFirebaseUid = settingsColumnCheck.some(
+    (c: any) => c.column_name === "firebase_uid"
+  );
+  const settingsHasUserId = settingsColumnCheck.some(
+    (c: any) => c.column_name === "user_id"
+  );
+  const settingsJoinColumn = settingsHasFirebaseUid
+    ? "firebase_uid"
+    : settingsHasUserId
+      ? "user_id"
+      : null;
 
   // Build query based on whether user_settings exists and which column it has
   let usersQuery: string;
@@ -285,38 +306,51 @@ async function migrateUsersToPersonalEntities(
   for (const user of usersWithoutEntities) {
     // Generate a unique slug (8 chars, lowercase alphanumeric)
     const slug = generateSlug(user.slug_source);
-    const displayName = user.display_name || user.email?.split('@')[0] || 'Personal';
+    const displayName =
+      user.display_name || user.email?.split("@")[0] || "Personal";
     const firebaseUid = user.firebase_uid;
 
     try {
       // Create personal entity
-      const [entity] = await client.unsafe(`
+      const [entity] = await client.unsafe(
+        `
         INSERT INTO ${prefix}entities (entity_slug, entity_type, display_name)
         VALUES ($1, 'personal', $2)
         RETURNING id
-      `, [slug, displayName]);
+      `,
+        [slug, displayName]
+      );
 
       // Add user as owner of their personal entity
-      await client.unsafe(`
+      await client.unsafe(
+        `
         INSERT INTO ${prefix}entity_members (entity_id, user_id, role, is_active)
         VALUES ($1, $2, 'owner', true)
-      `, [entity.id, firebaseUid]);
+      `,
+        [entity.id, firebaseUid]
+      );
 
       migratedCount++;
     } catch (error: any) {
       // If slug collision, generate a new one and retry
-      if (error.code === '23505') {
+      if (error.code === "23505") {
         const newSlug = generateSlug();
-        const [entity] = await client.unsafe(`
+        const [entity] = await client.unsafe(
+          `
           INSERT INTO ${prefix}entities (entity_slug, entity_type, display_name)
           VALUES ($1, 'personal', $2)
           RETURNING id
-        `, [newSlug, displayName]);
+        `,
+          [newSlug, displayName]
+        );
 
-        await client.unsafe(`
+        await client.unsafe(
+          `
           INSERT INTO ${prefix}entity_members (entity_id, user_id, role, is_active)
           VALUES ($1, $2, 'owner', true)
-        `, [entity.id, firebaseUid]);
+        `,
+          [entity.id, firebaseUid]
+        );
 
         migratedCount++;
       } else {
@@ -333,10 +367,10 @@ async function migrateUsersToPersonalEntities(
  * Uses entity_members with role = 'owner' to find personal entity membership.
  */
 async function populateProjectEntityIds(
-  client: ReturnType<typeof import('postgres')>,
+  client: ReturnType<typeof import("postgres")>,
   prefix: string
 ): Promise<void> {
-  console.log('Populating entity_id for existing projects...');
+  console.log("Populating entity_id for existing projects...");
 
   // Update projects to use user's personal entity (via entity_members with owner role)
   const result = await client.unsafe(`
@@ -362,14 +396,14 @@ function generateSlug(source?: string): string {
     // Normalize: lowercase, remove non-alphanumeric, take first 8 chars
     return source
       .toLowerCase()
-      .replace(/[^a-z0-9]/g, '')
+      .replace(/[^a-z0-9]/g, "")
       .substring(0, 8)
-      .padEnd(8, '0');
+      .padEnd(8, "0");
   }
 
   // Generate random slug
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let slug = '';
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let slug = "";
   for (let i = 0; i < 8; i++) {
     slug += chars.charAt(Math.floor(Math.random() * chars.length));
   }
@@ -379,7 +413,9 @@ function generateSlug(source?: string): string {
 /**
  * Rollback the entity migration.
  */
-export async function rollbackEntityMigration(config: MigrationConfig): Promise<void> {
+export async function rollbackEntityMigration(
+  config: MigrationConfig
+): Promise<void> {
   const { client, schemaName, migrateProjects = true } = config;
   const prefix = `${schemaName}.`;
 
@@ -397,5 +433,5 @@ export async function rollbackEntityMigration(config: MigrationConfig): Promise<
   await client.unsafe(`DROP TABLE IF EXISTS ${prefix}entity_members`);
   await client.unsafe(`DROP TABLE IF EXISTS ${prefix}entities`);
 
-  console.log('Entity migration rolled back');
+  console.log("Entity migration rolled back");
 }

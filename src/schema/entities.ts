@@ -18,7 +18,7 @@ import {
   boolean,
   uniqueIndex,
   index,
-} from 'drizzle-orm/pg-core';
+} from "drizzle-orm/pg-core";
 
 // ========================================
 // ENTITIES TABLE
@@ -34,16 +34,16 @@ import {
  */
 export function createEntitiesTable(schema: PgSchema, indexPrefix: string) {
   return schema.table(
-    'entities',
+    "entities",
     {
-      id: uuid('id').primaryKey().defaultRandom(),
-      entity_slug: varchar('entity_slug', { length: 12 }).notNull().unique(),
-      entity_type: varchar('entity_type', { length: 20 }).notNull(),
-      display_name: varchar('display_name', { length: 255 }).notNull(),
-      description: text('description'),
-      avatar_url: text('avatar_url'),
-      created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
-      updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+      id: uuid("id").primaryKey().defaultRandom(),
+      entity_slug: varchar("entity_slug", { length: 12 }).notNull().unique(),
+      entity_type: varchar("entity_type", { length: 20 }).notNull(),
+      display_name: varchar("display_name", { length: 255 }).notNull(),
+      description: text("description"),
+      avatar_url: text("avatar_url"),
+      created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+      updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
     },
     (table: Record<string, any>) => ({
       slugIdx: uniqueIndex(`${indexPrefix}_entities_slug_idx`).on(
@@ -60,18 +60,18 @@ export function createEntitiesTable(schema: PgSchema, indexPrefix: string) {
  */
 export function createEntitiesTablePublic(indexPrefix: string) {
   return pgTable(
-    'entities',
+    "entities",
     {
-      id: uuid('id').primaryKey().defaultRandom(),
-      entity_slug: varchar('entity_slug', { length: 12 }).notNull().unique(),
-      entity_type: varchar('entity_type', { length: 20 }).notNull(),
-      display_name: varchar('display_name', { length: 255 }).notNull(),
-      description: text('description'),
-      avatar_url: text('avatar_url'),
-      created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
-      updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+      id: uuid("id").primaryKey().defaultRandom(),
+      entity_slug: varchar("entity_slug", { length: 12 }).notNull().unique(),
+      entity_type: varchar("entity_type", { length: 20 }).notNull(),
+      display_name: varchar("display_name", { length: 255 }).notNull(),
+      description: text("description"),
+      avatar_url: text("avatar_url"),
+      created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+      updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
     },
-    (table) => ({
+    table => ({
       slugIdx: uniqueIndex(`${indexPrefix}_entities_slug_idx`).on(
         table.entity_slug
       ),
@@ -89,18 +89,21 @@ export function createEntitiesTablePublic(indexPrefix: string) {
  * This table manages all user-entity relationships including ownership.
  * Role can be: owner, manager, member
  */
-export function createEntityMembersTable(schema: PgSchema, indexPrefix: string) {
+export function createEntityMembersTable(
+  schema: PgSchema,
+  indexPrefix: string
+) {
   return schema.table(
-    'entity_members',
+    "entity_members",
     {
-      id: uuid('id').primaryKey().defaultRandom(),
-      entity_id: uuid('entity_id').notNull(),
-      user_id: varchar('user_id', { length: 128 }).notNull(), // firebase_uid
-      role: varchar('role', { length: 20 }).notNull(),
-      is_active: boolean('is_active').notNull().default(true),
-      joined_at: timestamp('joined_at', { withTimezone: true }).defaultNow(),
-      created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
-      updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+      id: uuid("id").primaryKey().defaultRandom(),
+      entity_id: uuid("entity_id").notNull(),
+      user_id: varchar("user_id", { length: 128 }).notNull(), // firebase_uid
+      role: varchar("role", { length: 20 }).notNull(),
+      is_active: boolean("is_active").notNull().default(true),
+      joined_at: timestamp("joined_at", { withTimezone: true }).defaultNow(),
+      created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+      updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
     },
     (table: Record<string, any>) => ({
       entityUserUniqueIdx: uniqueIndex(
@@ -109,8 +112,12 @@ export function createEntityMembersTable(schema: PgSchema, indexPrefix: string) 
       entityIdx: index(`${indexPrefix}_entity_members_entity_idx`).on(
         table.entity_id
       ),
-      userIdx: index(`${indexPrefix}_entity_members_user_idx`).on(table.user_id),
-      activeIdx: index(`${indexPrefix}_entity_members_active_idx`).on(table.is_active),
+      userIdx: index(`${indexPrefix}_entity_members_user_idx`).on(
+        table.user_id
+      ),
+      activeIdx: index(`${indexPrefix}_entity_members_active_idx`).on(
+        table.is_active
+      ),
     })
   );
 }
@@ -122,26 +129,30 @@ export function createEntityMembersTable(schema: PgSchema, indexPrefix: string) 
  */
 export function createEntityMembersTablePublic(indexPrefix: string) {
   return pgTable(
-    'entity_members',
+    "entity_members",
     {
-      id: uuid('id').primaryKey().defaultRandom(),
-      entity_id: uuid('entity_id').notNull(),
-      user_id: varchar('user_id', { length: 128 }).notNull(), // firebase_uid
-      role: varchar('role', { length: 20 }).notNull(),
-      is_active: boolean('is_active').notNull().default(true),
-      joined_at: timestamp('joined_at', { withTimezone: true }).defaultNow(),
-      created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
-      updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+      id: uuid("id").primaryKey().defaultRandom(),
+      entity_id: uuid("entity_id").notNull(),
+      user_id: varchar("user_id", { length: 128 }).notNull(), // firebase_uid
+      role: varchar("role", { length: 20 }).notNull(),
+      is_active: boolean("is_active").notNull().default(true),
+      joined_at: timestamp("joined_at", { withTimezone: true }).defaultNow(),
+      created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+      updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
     },
-    (table) => ({
+    table => ({
       entityUserUniqueIdx: uniqueIndex(
         `${indexPrefix}_entity_members_entity_user_idx`
       ).on(table.entity_id, table.user_id),
       entityIdx: index(`${indexPrefix}_entity_members_entity_idx`).on(
         table.entity_id
       ),
-      userIdx: index(`${indexPrefix}_entity_members_user_idx`).on(table.user_id),
-      activeIdx: index(`${indexPrefix}_entity_members_active_idx`).on(table.is_active),
+      userIdx: index(`${indexPrefix}_entity_members_user_idx`).on(
+        table.user_id
+      ),
+      activeIdx: index(`${indexPrefix}_entity_members_active_idx`).on(
+        table.is_active
+      ),
     })
   );
 }
@@ -153,21 +164,26 @@ export function createEntityMembersTablePublic(indexPrefix: string) {
 /**
  * Create an entity_invitations table for a specific PostgreSQL schema.
  */
-export function createEntityInvitationsTable(schema: PgSchema, indexPrefix: string) {
+export function createEntityInvitationsTable(
+  schema: PgSchema,
+  indexPrefix: string
+) {
   return schema.table(
-    'entity_invitations',
+    "entity_invitations",
     {
-      id: uuid('id').primaryKey().defaultRandom(),
-      entity_id: uuid('entity_id').notNull(),
-      email: varchar('email', { length: 255 }).notNull(),
-      role: varchar('role', { length: 20 }).notNull(),
-      status: varchar('status', { length: 20 }).notNull().default('pending'),
-      invited_by_user_id: varchar('invited_by_user_id', { length: 128 }).notNull(), // firebase_uid
-      token: varchar('token', { length: 64 }).notNull().unique(),
-      expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
-      accepted_at: timestamp('accepted_at', { withTimezone: true }),
-      created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
-      updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+      id: uuid("id").primaryKey().defaultRandom(),
+      entity_id: uuid("entity_id").notNull(),
+      email: varchar("email", { length: 255 }).notNull(),
+      role: varchar("role", { length: 20 }).notNull(),
+      status: varchar("status", { length: 20 }).notNull().default("pending"),
+      invited_by_user_id: varchar("invited_by_user_id", {
+        length: 128,
+      }).notNull(), // firebase_uid
+      token: varchar("token", { length: 64 }).notNull().unique(),
+      expires_at: timestamp("expires_at", { withTimezone: true }).notNull(),
+      accepted_at: timestamp("accepted_at", { withTimezone: true }),
+      created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+      updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
     },
     (table: Record<string, any>) => ({
       tokenIdx: uniqueIndex(`${indexPrefix}_entity_invitations_token_idx`).on(
@@ -191,21 +207,23 @@ export function createEntityInvitationsTable(schema: PgSchema, indexPrefix: stri
  */
 export function createEntityInvitationsTablePublic(indexPrefix: string) {
   return pgTable(
-    'entity_invitations',
+    "entity_invitations",
     {
-      id: uuid('id').primaryKey().defaultRandom(),
-      entity_id: uuid('entity_id').notNull(),
-      email: varchar('email', { length: 255 }).notNull(),
-      role: varchar('role', { length: 20 }).notNull(),
-      status: varchar('status', { length: 20 }).notNull().default('pending'),
-      invited_by_user_id: varchar('invited_by_user_id', { length: 128 }).notNull(), // firebase_uid
-      token: varchar('token', { length: 64 }).notNull().unique(),
-      expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
-      accepted_at: timestamp('accepted_at', { withTimezone: true }),
-      created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
-      updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+      id: uuid("id").primaryKey().defaultRandom(),
+      entity_id: uuid("entity_id").notNull(),
+      email: varchar("email", { length: 255 }).notNull(),
+      role: varchar("role", { length: 20 }).notNull(),
+      status: varchar("status", { length: 20 }).notNull().default("pending"),
+      invited_by_user_id: varchar("invited_by_user_id", {
+        length: 128,
+      }).notNull(), // firebase_uid
+      token: varchar("token", { length: 64 }).notNull().unique(),
+      expires_at: timestamp("expires_at", { withTimezone: true }).notNull(),
+      accepted_at: timestamp("accepted_at", { withTimezone: true }),
+      created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+      updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
     },
-    (table) => ({
+    table => ({
       tokenIdx: uniqueIndex(`${indexPrefix}_entity_invitations_token_idx`).on(
         table.token
       ),
@@ -228,68 +246,70 @@ export function createEntityInvitationsTablePublic(indexPrefix: string) {
 
 /** Default entities table for public schema */
 export const entities = pgTable(
-  'entities',
+  "entities",
   {
-    id: uuid('id').primaryKey().defaultRandom(),
-    entity_slug: varchar('entity_slug', { length: 12 }).notNull().unique(),
-    entity_type: varchar('entity_type', { length: 20 }).notNull(),
-    display_name: varchar('display_name', { length: 255 }).notNull(),
-    description: text('description'),
-    avatar_url: text('avatar_url'),
-    created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
-    updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+    id: uuid("id").primaryKey().defaultRandom(),
+    entity_slug: varchar("entity_slug", { length: 12 }).notNull().unique(),
+    entity_type: varchar("entity_type", { length: 20 }).notNull(),
+    display_name: varchar("display_name", { length: 255 }).notNull(),
+    description: text("description"),
+    avatar_url: text("avatar_url"),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
-  (table) => ({
-    slugIdx: uniqueIndex('entities_slug_idx').on(table.entity_slug),
-    typeIdx: index('entities_type_idx').on(table.entity_type),
+  table => ({
+    slugIdx: uniqueIndex("entities_slug_idx").on(table.entity_slug),
+    typeIdx: index("entities_type_idx").on(table.entity_type),
   })
 );
 
 /** Default entity_members table for public schema */
 export const entityMembers = pgTable(
-  'entity_members',
+  "entity_members",
   {
-    id: uuid('id').primaryKey().defaultRandom(),
-    entity_id: uuid('entity_id').notNull(),
-    user_id: varchar('user_id', { length: 128 }).notNull(), // firebase_uid
-    role: varchar('role', { length: 20 }).notNull(),
-    is_active: boolean('is_active').notNull().default(true),
-    joined_at: timestamp('joined_at', { withTimezone: true }).defaultNow(),
-    created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
-    updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+    id: uuid("id").primaryKey().defaultRandom(),
+    entity_id: uuid("entity_id").notNull(),
+    user_id: varchar("user_id", { length: 128 }).notNull(), // firebase_uid
+    role: varchar("role", { length: 20 }).notNull(),
+    is_active: boolean("is_active").notNull().default(true),
+    joined_at: timestamp("joined_at", { withTimezone: true }).defaultNow(),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
-  (table) => ({
-    entityUserUniqueIdx: uniqueIndex('entity_members_entity_user_idx').on(
+  table => ({
+    entityUserUniqueIdx: uniqueIndex("entity_members_entity_user_idx").on(
       table.entity_id,
       table.user_id
     ),
-    entityIdx: index('entity_members_entity_idx').on(table.entity_id),
-    userIdx: index('entity_members_user_idx').on(table.user_id),
-    activeIdx: index('entity_members_active_idx').on(table.is_active),
+    entityIdx: index("entity_members_entity_idx").on(table.entity_id),
+    userIdx: index("entity_members_user_idx").on(table.user_id),
+    activeIdx: index("entity_members_active_idx").on(table.is_active),
   })
 );
 
 /** Default entity_invitations table for public schema */
 export const entityInvitations = pgTable(
-  'entity_invitations',
+  "entity_invitations",
   {
-    id: uuid('id').primaryKey().defaultRandom(),
-    entity_id: uuid('entity_id').notNull(),
-    email: varchar('email', { length: 255 }).notNull(),
-    role: varchar('role', { length: 20 }).notNull(),
-    status: varchar('status', { length: 20 }).notNull().default('pending'),
-    invited_by_user_id: varchar('invited_by_user_id', { length: 128 }).notNull(), // firebase_uid
-    token: varchar('token', { length: 64 }).notNull().unique(),
-    expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
-    accepted_at: timestamp('accepted_at', { withTimezone: true }),
-    created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
-    updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+    id: uuid("id").primaryKey().defaultRandom(),
+    entity_id: uuid("entity_id").notNull(),
+    email: varchar("email", { length: 255 }).notNull(),
+    role: varchar("role", { length: 20 }).notNull(),
+    status: varchar("status", { length: 20 }).notNull().default("pending"),
+    invited_by_user_id: varchar("invited_by_user_id", {
+      length: 128,
+    }).notNull(), // firebase_uid
+    token: varchar("token", { length: 64 }).notNull().unique(),
+    expires_at: timestamp("expires_at", { withTimezone: true }).notNull(),
+    accepted_at: timestamp("accepted_at", { withTimezone: true }),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
-  (table) => ({
-    tokenIdx: uniqueIndex('entity_invitations_token_idx').on(table.token),
-    entityIdx: index('entity_invitations_entity_idx').on(table.entity_id),
-    emailIdx: index('entity_invitations_email_idx').on(table.email),
-    statusIdx: index('entity_invitations_status_idx').on(table.status),
+  table => ({
+    tokenIdx: uniqueIndex("entity_invitations_token_idx").on(table.token),
+    entityIdx: index("entity_invitations_entity_idx").on(table.entity_id),
+    emailIdx: index("entity_invitations_email_idx").on(table.email),
+    statusIdx: index("entity_invitations_status_idx").on(table.status),
   })
 );
 
@@ -322,11 +342,11 @@ export type NewEntityInvitationRecord = typeof entityInvitations.$inferInsert;
  * @param indexPrefix - Prefix for index names
  */
 export async function initEntityTables(
-  client: ReturnType<typeof import('postgres')>,
+  client: ReturnType<typeof import("postgres")>,
   schemaName: string | null,
   indexPrefix: string
 ): Promise<void> {
-  const prefix = schemaName ? `${schemaName}.` : '';
+  const prefix = schemaName ? `${schemaName}.` : "";
 
   // Create entities table (ownership tracked via entity_members)
   await client.unsafe(`

@@ -6,4 +6,4 @@ export {
   runEntityMigration,
   rollbackEntityMigration,
   type MigrationConfig,
-} from './001_add_entities';
+} from "./001_add_entities";

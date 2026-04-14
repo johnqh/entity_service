@@ -3,14 +3,14 @@
  * @description Permission checking for entity operations
  */
 
-import { eq, and } from 'drizzle-orm';
+import { eq, and } from "drizzle-orm";
 import {
   EntityRole,
   EntityType,
   getPermissionsForRole as getPermissionsForRoleFromTypes,
   type EntityPermissions,
   type EntityHelperConfig,
-} from '../types';
+} from "../types";
 
 /**
  * Helper class for entity permission checks.
@@ -215,7 +215,7 @@ export class PermissionHelper {
     const permissions = await this.getUserPermissions(entityId, userId);
 
     if (!permissions) {
-      throw new Error(errorMessage ?? 'User is not a member of this entity');
+      throw new Error(errorMessage ?? "User is not a member of this entity");
     }
 
     if (!permissions[permission]) {

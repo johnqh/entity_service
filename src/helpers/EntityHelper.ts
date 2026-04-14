@@ -3,7 +3,7 @@
  * @description CRUD operations for entities (personal and organization workspaces)
  */
 
-import { eq, and } from 'drizzle-orm';
+import { eq, and } from "drizzle-orm";
 import {
   EntityType,
   EntityRole,
@@ -12,8 +12,8 @@ import {
   type CreateEntityRequest,
   type UpdateEntityRequest,
   type EntityHelperConfig,
-} from '../types';
-import { generateEntitySlug, validateSlug, normalizeSlug } from '../utils';
+} from "../types";
+import { generateEntitySlug, validateSlug, normalizeSlug } from "../utils";
 
 /**
  * Helper class for entity CRUD operations.
@@ -32,7 +32,7 @@ export class EntityHelper {
     email?: string
   ): Promise<Entity> {
     const slug = generateEntitySlug();
-    const displayName = email?.split('@')[0] ?? 'Personal';
+    const displayName = email?.split("@")[0] ?? "Personal";
 
     const [entity] = await this.config.db
       .insert(this.config.entitiesTable)
@@ -103,11 +103,11 @@ export class EntityHelper {
     if (request.entitySlug) {
       slug = normalizeSlug(request.entitySlug);
       if (!validateSlug(slug)) {
-        throw new Error('Invalid entity slug format');
+        throw new Error("Invalid entity slug format");
       }
       // Check availability
       if (!(await this.isSlugAvailable(slug))) {
-        throw new Error('Entity slug is already taken');
+        throw new Error("Entity slug is already taken");
       }
     } else {
       slug = await this.generateUniqueSlug();
@@ -197,7 +197,10 @@ export class EntityHelper {
 
     // If user has no entities, create a personal entity for them
     if (results.length === 0) {
-      const personalEntity = await this.createPersonalEntity(firebaseUid, email);
+      const personalEntity = await this.createPersonalEntity(
+        firebaseUid,
+        email
+      );
       return [
         {
           ...personalEntity,
@@ -238,13 +241,13 @@ export class EntityHelper {
     if (request.entitySlug !== undefined) {
       const slug = normalizeSlug(request.entitySlug);
       if (!validateSlug(slug)) {
-        throw new Error('Invalid entity slug format');
+        throw new Error("Invalid entity slug format");
       }
       // Check if changing slug
       const existing = await this.getEntity(entityId);
       if (existing && existing.entitySlug !== slug) {
         if (!(await this.isSlugAvailable(slug))) {
-          throw new Error('Entity slug is already taken');
+          throw new Error("Entity slug is already taken");
         }
         updates.entity_slug = slug;
       }
@@ -266,11 +269,11 @@ export class EntityHelper {
   async deleteEntity(entityId: string): Promise<void> {
     const entity = await this.getEntity(entityId);
     if (!entity) {
-      throw new Error('Entity not found');
+      throw new Error("Entity not found");
     }
 
     if (entity.entityType === EntityType.PERSONAL) {
-      throw new Error('Personal entities cannot be deleted');
+      throw new Error("Personal entities cannot be deleted");
     }
 
     await this.config.db
@@ -301,7 +304,7 @@ export class EntityHelper {
         return slug;
       }
     }
-    throw new Error('Failed to generate unique slug');
+    throw new Error("Failed to generate unique slug");
   }
 
   /**
