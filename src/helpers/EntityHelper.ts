@@ -3,7 +3,7 @@
  * @description CRUD operations for entities (personal and organization workspaces)
  */
 
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import {
   EntityType,
   EntityRole,
@@ -16,25 +16,31 @@ import {
 import { generateEntitySlug, validateSlug, normalizeSlug } from "../utils";
 
 /**
+ * Advisory-lock namespace for personal-entity creation. Keeps the per-user
+ * lock keys from colliding with advisory locks used by other features.
+ */
+const PERSONAL_ENTITY_LOCK_NAMESPACE = 0x70657273; // "pers"
+
+/**
  * Helper class for entity CRUD operations.
  */
 export class EntityHelper {
   constructor(private readonly config: EntityHelperConfig) {}
 
   /**
-   * Create a personal entity for a user.
-   * Called automatically when a user first logs in.
-   * @param firebaseUid - The Firebase UID (used as user_id)
-   * @param email - Optional email for display name
+   * Insert a personal entity (+ owner membership) using the given executor.
+   * The executor is either the base db or a transaction handle, so this can be
+   * reused inside `getOrCreatePersonalEntity`'s locked transaction.
    */
-  async createPersonalEntity(
+  private async insertPersonalEntity(
+    executor: Pick<EntityHelperConfig["db"], "insert">,
     firebaseUid: string,
     email?: string
   ): Promise<Entity> {
     const slug = generateEntitySlug();
     const displayName = email?.split("@")[0] ?? "Personal";
 
-    const [entity] = await this.config.db
+    const [entity] = await executor
       .insert(this.config.entitiesTable)
       .values({
         entity_slug: slug,
@@ -44,7 +50,7 @@ export class EntityHelper {
       .returning();
 
     // Add user as owner of their personal entity
-    await this.config.db.insert(this.config.membersTable).values({
+    await executor.insert(this.config.membersTable).values({
       entity_id: entity.id,
       user_id: firebaseUid,
       role: EntityRole.OWNER,
@@ -55,8 +61,34 @@ export class EntityHelper {
   }
 
   /**
+   * Create a personal entity for a user.
+   *
+   * Prefer {@link getOrCreatePersonalEntity} for the login path: it guards
+   * against creating duplicates. This unconditional create is exposed for
+   * callers that have already established no personal entity exists.
+   * @param firebaseUid - The Firebase UID (used as user_id)
+   * @param email - Optional email for display name
+   */
+  async createPersonalEntity(
+    firebaseUid: string,
+    email?: string
+  ): Promise<Entity> {
+    return this.insertPersonalEntity(this.config.db, firebaseUid, email);
+  }
+
+  /**
    * Get or create a personal entity for a user.
    * Ensures exactly one personal entity exists per user.
+   *
+   * The check-then-create runs inside a single transaction guarded by a
+   * per-user Postgres advisory lock. Without this, a brand-new user's first
+   * authenticated page load fires several requests in parallel (the auth
+   * middleware calls this on every request); each request's existence check
+   * runs before any other has committed its insert, so every one of them
+   * creates a personal entity -- producing duplicates. The advisory lock
+   * serializes those concurrent callers so only the first creates the entity
+   * and the rest find it.
+   *
    * @param firebaseUid - The Firebase UID (used as user_id)
    * @param email - Optional email for display name
    */
@@ -64,29 +96,37 @@ export class EntityHelper {
     firebaseUid: string,
     email?: string
   ): Promise<Entity> {
-    // Check for existing personal entity where user is owner
-    const existing = await this.config.db
-      .select({ entity: this.config.entitiesTable })
-      .from(this.config.membersTable)
-      .innerJoin(
-        this.config.entitiesTable,
-        eq(this.config.membersTable.entity_id, this.config.entitiesTable.id)
-      )
-      .where(
-        and(
-          eq(this.config.membersTable.user_id, firebaseUid),
-          eq(this.config.membersTable.role, EntityRole.OWNER),
-          eq(this.config.membersTable.is_active, true),
-          eq(this.config.entitiesTable.entity_type, EntityType.PERSONAL)
+    return this.config.db.transaction(async tx => {
+      // Serialize concurrent get-or-create calls for this user. The lock is
+      // released automatically when the transaction ends.
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(${PERSONAL_ENTITY_LOCK_NAMESPACE}::int4, hashtext(${firebaseUid}))`
+      );
+
+      // Check for existing personal entity where user is owner
+      const existing = await tx
+        .select({ entity: this.config.entitiesTable })
+        .from(this.config.membersTable)
+        .innerJoin(
+          this.config.entitiesTable,
+          eq(this.config.membersTable.entity_id, this.config.entitiesTable.id)
         )
-      )
-      .limit(1);
+        .where(
+          and(
+            eq(this.config.membersTable.user_id, firebaseUid),
+            eq(this.config.membersTable.role, EntityRole.OWNER),
+            eq(this.config.membersTable.is_active, true),
+            eq(this.config.entitiesTable.entity_type, EntityType.PERSONAL)
+          )
+        )
+        .limit(1);
 
-    if (existing.length > 0) {
-      return this.mapRecordToEntity(existing[0].entity);
-    }
+      if (existing.length > 0) {
+        return this.mapRecordToEntity(existing[0].entity);
+      }
 
-    return this.createPersonalEntity(firebaseUid, email);
+      return this.insertPersonalEntity(tx, firebaseUid, email);
+    });
   }
 
   /**
@@ -195,9 +235,11 @@ export class EntityHelper {
         )
       );
 
-    // If user has no entities, create a personal entity for them
+    // If user has no entities, create a personal entity for them. Route through
+    // the locked get-or-create so concurrent first-login requests can't each
+    // create a duplicate personal entity.
     if (results.length === 0) {
-      const personalEntity = await this.createPersonalEntity(
+      const personalEntity = await this.getOrCreatePersonalEntity(
         firebaseUid,
         email
       );

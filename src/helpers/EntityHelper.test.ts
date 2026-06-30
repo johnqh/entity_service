@@ -55,6 +55,11 @@ function createMockConfig() {
     chain.innerJoin = vi.fn().mockReturnValue(chain);
     chain.where = vi.fn().mockReturnValue(chain);
     chain.limit = vi.fn().mockResolvedValue([]);
+    // Transaction support: run the callback with the same chain acting as the
+    // transaction executor (mirrors drizzle's db.transaction(async tx => ...)).
+    chain.transaction = vi.fn().mockImplementation((cb: any) => cb(chain));
+    // Raw SQL execution (used for the advisory lock); returns nothing useful.
+    chain.execute = vi.fn().mockResolvedValue([]);
     return chain;
   };
 
@@ -139,6 +144,68 @@ describe("EntityHelper", () => {
       await helper.createPersonalEntity(mockFirebaseUid);
 
       expect(insertedEntities[0].display_name).toBe("Personal");
+    });
+  });
+
+  describe("getOrCreatePersonalEntity", () => {
+    test("runs check-and-create inside a single transaction (no race)", async () => {
+      const config = createMockConfig();
+      const helper = new EntityHelper(config);
+
+      await helper.getOrCreatePersonalEntity(mockFirebaseUid, mockEmail);
+
+      // The whole get-or-create must be wrapped in one transaction so the
+      // check-then-create is atomic for concurrent first-login requests.
+      expect(config.db.transaction).toHaveBeenCalledTimes(1);
+    });
+
+    test("acquires a per-user advisory lock before checking", async () => {
+      const config = createMockConfig();
+      const helper = new EntityHelper(config);
+
+      await helper.getOrCreatePersonalEntity(mockFirebaseUid, mockEmail);
+
+      // An advisory lock must be taken to serialize concurrent callers.
+      expect(config.db.execute).toHaveBeenCalledTimes(1);
+    });
+
+    test("creates exactly one personal entity when none exists", async () => {
+      const config = createMockConfig();
+      const helper = new EntityHelper(config);
+
+      await helper.getOrCreatePersonalEntity(mockFirebaseUid, mockEmail);
+
+      expect(insertedEntities).toHaveLength(1);
+      expect(insertedEntities[0].entity_type).toBe(EntityType.PERSONAL);
+    });
+
+    test("returns the existing personal entity without inserting a duplicate", async () => {
+      const config = createMockConfig();
+      // Simulate an existing personal entity found by the in-transaction check.
+      config.db.limit = vi.fn().mockResolvedValue([
+        {
+          entity: {
+            id: mockEntityId,
+            entity_slug: mockEntitySlug,
+            entity_type: EntityType.PERSONAL,
+            display_name: "test",
+            description: null,
+            avatar_url: null,
+            created_at: new Date(),
+            updated_at: new Date(),
+          },
+        },
+      ]);
+      const helper = new EntityHelper(config);
+
+      const result = await helper.getOrCreatePersonalEntity(
+        mockFirebaseUid,
+        mockEmail
+      );
+
+      expect(result.id).toBe(mockEntityId);
+      expect(insertedEntities).toHaveLength(0);
+      expect(insertedMembers).toHaveLength(0);
     });
   });
 
