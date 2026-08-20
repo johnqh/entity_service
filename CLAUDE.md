@@ -1,5 +1,10 @@
 # Entity Service
 
+> **Git policy — never auto-commit or auto-push.** Leave your work in the working tree.
+> Run `git commit`, `git push`, `gh pr create`, or `scripts/push_all.sh` **only when the user
+> explicitly asks in that turn**. Approval for an earlier change does not carry forward, and
+> finishing a task is not permission to commit it.
+
 Shared backend library for multi-tenant entity/organization management.
 
 **npm**: `@sudobility/entity_service` (public)
@@ -219,3 +224,7 @@ bun test          # Run tests separately
 - **Peer dependencies (drizzle-orm, hono) must be installed by consumers** -- do not add to `dependencies`.
 - **Personal entities use randomly generated slugs** (8-char alphanumeric via `generateEntitySlug()`). Slugs are not derived from userId.
 - **Role permissions are defined in `@sudobility/types`** and re-exported via `types/index.ts`. Changing them affects all consumers.
+
+## Git Workflow
+
+- Do not use feature branches for code changes. Always stay on the current branch.
