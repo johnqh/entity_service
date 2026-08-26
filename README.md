@@ -47,6 +47,7 @@ app.use('/api/v1/entities/:entitySlug/*', createEntityContextMiddleware(config, 
 | `createEntitiesTable(pgSchema, prefix)` | Entities table definition |
 | `createEntityMembersTable(pgSchema, prefix)` | Entity members table |
 | `createEntityInvitationsTable(pgSchema, prefix)` | Invitations table |
+| `createEntityApiKeysTable(pgSchema, prefix)` | Entity API keys table |
 
 ### Helpers
 
@@ -56,6 +57,19 @@ app.use('/api/v1/entities/:entitySlug/*', createEntityContextMiddleware(config, 
 | `EntityMemberHelper` | Member listing, role updates, removal |
 | `InvitationHelper` | Create, accept, decline, cancel, renew invitations |
 | `PermissionHelper` | Role-based permission checks (Owner > Manager > Member) |
+| `ApiKeyHelper` | `createKey`, `getKeys`, `updateKey`, `revokeKey`, `verifyKey` |
+
+Entity API keys authenticate a caller as the entity itself (CI, scripts,
+integrations) rather than as a member. Only the SHA-256 hash is stored, so the
+plaintext is returned once by `createKey` and cannot be recovered -- a lost key
+is rotated, not revealed. Gate writes on `canManageApiKeys` and reads on
+`canViewApiKeys`; the helper does not check permissions itself.
+
+```typescript
+const helpers = createEntityHelpers({ ...config, apiKeysTable: schema.entityApiKeys, keyPrefix: 'shyft' });
+const { key } = await helpers.apiKeys!.createKey(entityId, userId, 'CI deploy');
+const identity = await helpers.apiKeys!.verifyKey(incomingKey);
+```
 
 ### Middleware
 

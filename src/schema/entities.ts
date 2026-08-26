@@ -241,6 +241,86 @@ export function createEntityInvitationsTablePublic(indexPrefix: string) {
 }
 
 // ========================================
+// ENTITY API KEYS TABLE
+// ========================================
+
+/**
+ * Create an entity_api_keys table for a specific PostgreSQL schema.
+ * Keys authenticate a caller as the entity itself (CI, scripts, service
+ * integrations) rather than as an individual member. Only the SHA-256 hash is
+ * stored; the plaintext is shown once at creation.
+ */
+export function createEntityApiKeysTable(
+  schema: PgSchema,
+  indexPrefix: string
+) {
+  return schema.table(
+    "entity_api_keys",
+    {
+      id: uuid("id").primaryKey().defaultRandom(),
+      entity_id: uuid("entity_id").notNull(),
+      key_name: varchar("key_name", { length: 255 }).notNull(),
+      /** SHA-256 hex digest of the key -- the authentication lookup index */
+      key_hash: varchar("key_hash", { length: 64 }).notNull().unique(),
+      /** Leading characters of the key, for display in listings */
+      key_prefix: varchar("key_prefix", { length: 20 }).notNull(),
+      created_by_user_id: varchar("created_by_user_id", {
+        length: 128,
+      }).notNull(), // firebase_uid
+      is_active: boolean("is_active").notNull().default(true),
+      last_used_at: timestamp("last_used_at", { withTimezone: true }),
+      created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+      updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+    },
+    (table: Record<string, any>) => ({
+      hashIdx: uniqueIndex(`${indexPrefix}_entity_api_keys_hash_idx`).on(
+        table.key_hash
+      ),
+      entityIdx: index(`${indexPrefix}_entity_api_keys_entity_idx`).on(
+        table.entity_id
+      ),
+      activeIdx: index(`${indexPrefix}_entity_api_keys_active_idx`).on(
+        table.is_active
+      ),
+    })
+  );
+}
+
+/**
+ * Create an entity_api_keys table for the public schema.
+ */
+export function createEntityApiKeysTablePublic(indexPrefix: string) {
+  return pgTable(
+    "entity_api_keys",
+    {
+      id: uuid("id").primaryKey().defaultRandom(),
+      entity_id: uuid("entity_id").notNull(),
+      key_name: varchar("key_name", { length: 255 }).notNull(),
+      key_hash: varchar("key_hash", { length: 64 }).notNull().unique(),
+      key_prefix: varchar("key_prefix", { length: 20 }).notNull(),
+      created_by_user_id: varchar("created_by_user_id", {
+        length: 128,
+      }).notNull(), // firebase_uid
+      is_active: boolean("is_active").notNull().default(true),
+      last_used_at: timestamp("last_used_at", { withTimezone: true }),
+      created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+      updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+    },
+    table => ({
+      hashIdx: uniqueIndex(`${indexPrefix}_entity_api_keys_hash_idx`).on(
+        table.key_hash
+      ),
+      entityIdx: index(`${indexPrefix}_entity_api_keys_entity_idx`).on(
+        table.entity_id
+      ),
+      activeIdx: index(`${indexPrefix}_entity_api_keys_active_idx`).on(
+        table.is_active
+      ),
+    })
+  );
+}
+
+// ========================================
 // DEFAULT TABLES (Public Schema)
 // ========================================
 
@@ -313,6 +393,30 @@ export const entityInvitations = pgTable(
   })
 );
 
+/** Default entity_api_keys table for public schema */
+export const entityApiKeys = pgTable(
+  "entity_api_keys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    entity_id: uuid("entity_id").notNull(),
+    key_name: varchar("key_name", { length: 255 }).notNull(),
+    key_hash: varchar("key_hash", { length: 64 }).notNull().unique(),
+    key_prefix: varchar("key_prefix", { length: 20 }).notNull(),
+    created_by_user_id: varchar("created_by_user_id", {
+      length: 128,
+    }).notNull(), // firebase_uid
+    is_active: boolean("is_active").notNull().default(true),
+    last_used_at: timestamp("last_used_at", { withTimezone: true }),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  table => ({
+    hashIdx: uniqueIndex("entity_api_keys_hash_idx").on(table.key_hash),
+    entityIdx: index("entity_api_keys_entity_idx").on(table.entity_id),
+    activeIdx: index("entity_api_keys_active_idx").on(table.is_active),
+  })
+);
+
 // ========================================
 // TYPE EXPORTS
 // ========================================
@@ -328,6 +432,10 @@ export type NewEntityMemberRecord = typeof entityMembers.$inferInsert;
 /** TypeScript type for entity_invitations table row */
 export type EntityInvitationRecord = typeof entityInvitations.$inferSelect;
 export type NewEntityInvitationRecord = typeof entityInvitations.$inferInsert;
+
+/** TypeScript type for entity_api_keys table row */
+export type EntityApiKeyRecord = typeof entityApiKeys.$inferSelect;
+export type NewEntityApiKeyRecord = typeof entityApiKeys.$inferInsert;
 
 // ========================================
 // INITIALIZATION FUNCTIONS
@@ -442,5 +550,36 @@ export async function initEntityTables(
   await client.unsafe(`
     CREATE INDEX IF NOT EXISTS ${indexPrefix}_entity_invitations_status_idx
     ON ${prefix}entity_invitations (status)
+  `);
+
+  // Create entity_api_keys table (entity-scoped credentials, hash-only storage)
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS ${prefix}entity_api_keys (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      entity_id UUID NOT NULL REFERENCES ${prefix}entities(id) ON DELETE CASCADE,
+      key_name VARCHAR(255) NOT NULL,
+      key_hash VARCHAR(64) NOT NULL UNIQUE,
+      key_prefix VARCHAR(20) NOT NULL,
+      created_by_user_id VARCHAR(128) NOT NULL,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      last_used_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  await client.unsafe(`
+    CREATE UNIQUE INDEX IF NOT EXISTS ${indexPrefix}_entity_api_keys_hash_idx
+    ON ${prefix}entity_api_keys (key_hash)
+  `);
+
+  await client.unsafe(`
+    CREATE INDEX IF NOT EXISTS ${indexPrefix}_entity_api_keys_entity_idx
+    ON ${prefix}entity_api_keys (entity_id)
+  `);
+
+  await client.unsafe(`
+    CREATE INDEX IF NOT EXISTS ${indexPrefix}_entity_api_keys_active_idx
+    ON ${prefix}entity_api_keys (is_active)
   `);
 }

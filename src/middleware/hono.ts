@@ -8,11 +8,13 @@ import { EntityHelper } from "../helpers/EntityHelper";
 import { EntityMemberHelper } from "../helpers/EntityMemberHelper";
 import { InvitationHelper } from "../helpers/InvitationHelper";
 import { PermissionHelper } from "../helpers/PermissionHelper";
+import { ApiKeyHelper } from "../helpers/ApiKeyHelper";
 import {
   EntityRole,
   type Entity,
   type EntityPermissions,
   type InvitationHelperConfig,
+  type ApiKeyHelperConfig,
 } from "../types";
 
 /**
@@ -190,12 +192,21 @@ export function createRequireRoleMiddleware(
  * const members = await helpers.members.getMembers(entityId);
  * ```
  */
-export function createEntityHelpers(config: InvitationHelperConfig) {
+export function createEntityHelpers(
+  config: InvitationHelperConfig & Partial<ApiKeyHelperConfig>
+) {
   return {
     entity: new EntityHelper(config),
     members: new EntityMemberHelper(config),
     invitations: new InvitationHelper(config),
     permissions: new PermissionHelper(config),
+    /**
+     * API key operations. Present only when `apiKeysTable` is configured --
+     * callers that do not issue entity keys can omit it.
+     */
+    apiKeys: config.apiKeysTable
+      ? new ApiKeyHelper(config as ApiKeyHelperConfig)
+      : undefined,
   };
 }
 

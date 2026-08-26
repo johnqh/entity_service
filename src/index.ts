@@ -36,10 +36,13 @@ export {
   createEntityMembersTablePublic,
   createEntityInvitationsTable,
   createEntityInvitationsTablePublic,
+  createEntityApiKeysTable,
+  createEntityApiKeysTablePublic,
   // Default tables (public schema)
   entities,
   entityMembers,
   entityInvitations,
+  entityApiKeys,
   // Type exports
   type EntityRecord,
   type NewEntityRecord,
@@ -47,6 +50,8 @@ export {
   type NewEntityMemberRecord,
   type EntityInvitationRecord,
   type NewEntityInvitationRecord,
+  type EntityApiKeyRecord,
+  type NewEntityApiKeyRecord,
   // Initialization
   initEntityTables,
 } from "./schema/entities";
@@ -57,6 +62,7 @@ export {
   EntityMemberHelper,
   InvitationHelper,
   PermissionHelper,
+  ApiKeyHelper,
 } from "./helpers";
 
 // Middleware exports
@@ -73,6 +79,10 @@ export {
 export {
   generateEntitySlug,
   generateInvitationToken,
+  generateApiKey,
+  hashApiKey,
+  validateKeyPrefix,
+  type GeneratedApiKey,
   normalizeSlug,
   validateSlug,
   calculateInvitationExpiry,
@@ -110,6 +120,11 @@ export {
 export type {
   EntityHelperConfig,
   InvitationHelperConfig,
+  ApiKeyHelperConfig,
+  EntityApiKey,
+  CreatedEntityApiKey,
+  EntityApiKeyIdentity,
+  ListApiKeysOptions,
   EntityOperationResult,
   ListEntitiesOptions,
   ListMembersOptions,
